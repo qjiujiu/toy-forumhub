@@ -24,7 +24,7 @@ class Post(Base):
         CREATE TABLE IF NOT EXISTS posts (
             id INT AUTO_INCREMENT PRIMARY KEY,           -- 系统主键ID（自增）
             pid VARCHAR(36) UNIQUE,                      -- 业务主键PID（UUID）
-            author_id VARCHAR(36) NOT NULL,                          -- 作者 ID
+            author_id VARCHAR(36) NOT NULL,              -- 作者 ID
             title VARCHAR(255) NOT NULL,              -- 帖子标题
             content TEXT NOT NULL,                    -- 帖子内容
             visibility SMALLINT DEFAULT 0,            -- 可见性（0:公开, 1:仅作者, 2:草稿）
