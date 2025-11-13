@@ -19,34 +19,35 @@ class PostReviewStatus(PyEnum):
     REJECTED = 2  # 拒绝
 
 class Post(Base):
-    """ 帖子模型，对应数据库中的 posts 表。
-    
+    """ 帖子动态表，存储帖子的状态、点赞数、评论数等动态信息。
+
         CREATE TABLE IF NOT EXISTS posts (
             id INT AUTO_INCREMENT PRIMARY KEY,           -- 系统主键ID（自增）
             pid VARCHAR(36) UNIQUE,                      -- 业务主键PID（UUID）
             author_id VARCHAR(36) NOT NULL,              -- 作者 ID
-            title VARCHAR(255) NOT NULL,              -- 帖子标题
-            content TEXT NOT NULL,                    -- 帖子内容
-            visibility SMALLINT DEFAULT 0,            -- 可见性（0:公开, 1:仅作者, 2:草稿）
-            review_status SMALLINT DEFAULT 0,         -- 审核状态（0:待审, 1:通过, 2:拒绝）
-            reviewed_at TIMESTAMP,                    -- 审核时间
-            comment_count INT DEFAULT 0,              -- 评论计数
-            like_count INT DEFAULT 0,                 -- 点赞计数
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  -- 创建时间
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  -- 更新时间
-            deleted_at TIMESTAMP NULL,                -- 软删除时间戳
-            FOREIGN KEY (author_id) REFERENCES users(uid)  -- 外键关联到用户表
+            visibility SMALLINT DEFAULT 0,               -- 可见性（0:公开, 1:仅作者, 2:草稿）
+            review_status SMALLINT DEFAULT 0,            -- 审核状态（0:待审, 1:通过, 2:拒绝）
+            reviewed_at TIMESTAMP,                       -- 审核时间
+            like_count INT DEFAULT 0,                    -- 点赞数
+            deleted_at TIMESTAMP NULL,                   -- 软删除时间戳
+            postcontent_id VARCHAR(36) NOT NULL,         -- 指向帖子内容表的业务主键
+            comment_id VARCHAR(36) NULL,                 -- 关联评论表的评论ID（可选）
+
+            FOREIGN KEY (author_id) REFERENCES users(uid),   -- 外键关联到用户表
+            FOREIGN KEY (postcontent_id) REFERENCES post_contents(pcid)  -- 外键关联到帖子内容表
         );
-        -- 为 author_id 添加索引，以便快速查询某个作者的帖子
+
+        -- 索引建议：
+        -- 1) 为 author_id 添加索引，以便快速查询某个作者的帖子
         CREATE INDEX idx_posts_author_id ON posts (author_id);
 
-        -- 为 visibility 和 review_status 添加联合索引，以便快速筛选帖子
+        -- 2) 为 visibility 和 review_status 添加联合索引，以便快速筛选帖子
         CREATE INDEX idx_posts_visibility_review_status ON posts (visibility, review_status);
 
-        -- 可选择联合索引，查询特定作者和可见性（如公开、草稿等）的帖子
+        -- 3) 为 author_id 和 visibility 添加联合索引，以便快速查询特定作者和可见性（如公开、草稿等）的帖子
         CREATE INDEX idx_posts_author_visibility ON posts (author_id, visibility);
     """
-    
+
     __tablename__ = "posts"
 
     # 系统主键：自增
@@ -54,31 +55,36 @@ class Post(Base):
     # 业务主键：UUID，唯一且不自增
     pid = Column(String(36), unique=True, default=lambda: str(uuid.uuid4()))  # 用户的业务主键（UUID形式）
 
-    author_id = Column(String(36), ForeignKey("users.uid"), nullable=False)  # 帖子作者 ID
-    title = Column(String(255), nullable=False)  # 帖子标题
-    content = Column(Text, nullable=False)  # 帖子内容
+    # 帖子作者 ID
+    author_id = Column(String(36), ForeignKey("users.uid"), nullable=False)  
     visibility = Column(SAEnum(PostVisibility), default=PostVisibility.PUBLIC)  # 可见性（0:公开, 1:仅作者, 2:草稿）
     review_status = Column(SAEnum(PostReviewStatus), default=PostReviewStatus.PENDING)  # 审核状态（0:待审, 1:通过, 2:拒绝）
     reviewed_at = Column(TIMESTAMP, nullable=True)  # 审核时间
-    comment_count = Column(Integer, default=0)  # 评论数
     like_count = Column(Integer, default=0, nullable=False)  # 点赞数
-    created_at = Column(TIMESTAMP, default=datetime.datetime.utcnow)  # 创建时间
-    updated_at = Column(TIMESTAMP, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)  # 更新时间
     deleted_at = Column(TIMESTAMP, nullable=True)  # 软删除时间戳
 
-    # 反向引用：该帖子的所有评论
-    comments = relationship("Comment", back_populates="post")
-    # 反向引用：该帖子的所有点赞
-    likes = relationship("Like", back_populates="post")
+    # 关联静态内容表（post_contents id）
+    postcontent_id = Column(String(36), ForeignKey("post_contents.pcid"), nullable=False)
+    # 关联评论表（comment_id 评论表id）
+    comment_id = Column(String(36), ForeignKey("comments.cid"), nullable=True)
+
     # 反向引用：该帖子的作者
     author = relationship("User", back_populates="posts")
+    # 单向引用：该帖子的内容
+    post_content = relationship("PostContent")
+    # 单向引用：该帖子的评论
+    comment = relationship("Comment")
+    
+    # 帖子本身可以展示点赞数，无需额外点赞表关联
+    # 单向引用：该帖子的点赞
+    # 还是使用 relationship 关联点赞表与帖子表之间的数据，为了方便查询哪些用户点赞这篇帖子
+    likes = relationship("Like")
 
     __table_args__ = (
         # 保证业务主键 pid 唯一
         UniqueConstraint('pid', name='unique_pid'),
-        # 单列索引
+        # 索引与上面的 SQL 一致（让 ORM 自动建索引）
         Index("idx_posts_author_id", "author_id"),
-        # 联合索引
         Index("idx_posts_visibility_review_status", "visibility", "review_status"),
         Index("idx_posts_author_visibility", "author_id", "visibility"),
     )
