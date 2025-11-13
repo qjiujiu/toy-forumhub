@@ -3,6 +3,13 @@ from sqlalchemy.orm import relationship
 import datetime
 from app.models.base import Base
 import uuid
+from sqlalchemy import Enum as SAEnum  # SQLAlchemy 数据类型
+from enum import Enum as PyEnum  # Python 原生枚举
+
+# 点赞目标类型
+class LikeTargetType(PyEnum):
+    POST = 0  # 帖子
+    COMMENT = 1  # 评论
 
 class Like(Base):
     """ 点赞模型，对应数据库中的 likes 表。
@@ -32,18 +39,18 @@ class Like(Base):
     # 业务主键（UUID，对外使用）
     lid = Column(String(36), unique=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.uid"), nullable=False)  # 用户 ID
-    target_type = Column(SmallInteger, nullable=False)  # 点赞目标类型（0: 帖子, 1: 评论）
+    target_type = Column(SAEnum(LikeTargetType), nullable=False)  # 点赞目标类型（0: 帖子, 1: 评论）
     target_id = Column(String(36), nullable=False)  # 点赞目标 ID（帖子或评论 ID）
     created_at = Column(TIMESTAMP, default=datetime.datetime.utcnow)  # 点赞时间
     deleted_at = Column(TIMESTAMP, nullable=True)  # 软删除时间戳
 
-    # 反向引用：该点赞的用户
-    user = relationship("User", back_populates="likes")
-    # 反向引用：该点赞的帖子（如果是帖子点赞）
-    post = relationship("Post", back_populates="likes", uselist=False, primaryjoin="and_(Like.target_id==Post.pid, Like.target_type==0)", viewonly=True)
-    # 反向引用：该点赞的评论（如果是评论点赞）
-    comment = relationship("Comment", back_populates="likes", uselist=False, primaryjoin="and_(Like.target_id==Comment.cid, Like.target_type==1)", viewonly=True)
-
+    # # 反向引用：该点赞的用户
+    # user = relationship("User", back_populates="likes")
+    # # 反向引用：该点赞的帖子（如果是帖子点赞）
+    # post = relationship("Post", back_populates="likes", uselist=False, primaryjoin="and_(Like.target_id==Post.pid, Like.target_type==0)", viewonly=True)
+    # # 反向引用：该点赞的评论区（如果是评论区点赞）
+    # comment_sections = relationship("CommentSection", back_populates="likes", uselist=False, primaryjoin="and_(Like.target_id==CommentSection.csid, Like.target_type==LikeTargetType.COMMENT)", viewonly=True)
+    
     __table_args__ = (
         # 每个用户对同一目标只能点赞一次（业务约束）
         UniqueConstraint("user_id", "target_type", "target_id", name="uq_likes_user_target"),
