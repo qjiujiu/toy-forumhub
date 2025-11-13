@@ -34,7 +34,6 @@ class User(Base):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,    -- 创建时间
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,    -- 更新时间
             deleted_at TIMESTAMP NULL,                -- 软删除时间戳
-            FOREIGN KEY (uid) REFERENCES users(uid)   -- 用户业务主键（UUID）
         );
     """
     
@@ -47,7 +46,7 @@ class User(Base):
     avatar_url = Column(String(255), nullable=True)  # 用户头像
     email = Column(String(100), unique=True, nullable=True)  # 用户邮箱
     phone = Column(String(50), unique=True, nullable=False)  # 用户电话
-    password_hash = Column(String(255), nullable=True)  # 密码哈希
+    password = Column(String(255), nullable=True)  # 密码哈希
     role = Column(SAEnum(UserRole), default=UserRole.NORMAL_USER)  # 用户角色（普通用户、审核员、管理员）
     bio = Column(Text, nullable=True)  # 用户简介
     status = Column(SAEnum(UserStatus), default=UserStatus.NORMAL) # 用户状态（0正常，1封禁，2冻结）
@@ -59,6 +58,6 @@ class User(Base):
     # 反向引用：该用户的所有帖子
     posts = relationship("Post", back_populates="author")
     # 反向引用：该用户的所有评论
-    comments = relationship("Comment", back_populates="author")
-    # 反向引用：该用户的所有点赞记录
-    likes = relationship("Like", back_populates="user")
+    comment_sections = relationship("CommentSection", back_populates="author")
+    # 单向引用：该用户的所有点赞记录
+    likes = relationship("Like")
