@@ -1,0 +1,38 @@
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session, sessionmaker
+from app.storage.user.SQLAlchemyUserRepository import SQLAlchemyUserRepository
+from app.storage.follow.SQLAlchemyFollowRepository import SQLAlchemyFollowRepository
+from app.storage.user_stats.SQLAlchemyUserStatsRepository import SQLAlchemyUserStatsRepository
+
+from fastapi import Depends
+
+# ======== 配置区 ========
+DB_HOST = "127.0.0.1"
+DB_PORT = 3306
+DB_USER = "root"
+DB_PASSWORD = "102412"   # 你的 MySQL 密码
+DB_NAME = "forum_db"
+# ========================
+
+DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
+# SQLAlchemy 引擎
+engine = create_engine(DATABASE_URL, echo=True)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+Base = declarative_base()
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# 未来可以根据配置切换不同的实现
+def get_user_repo(db: Session = Depends(get_db)) -> SQLAlchemyUserRepository:
+    return SQLAlchemyUserRepository(db)
+def get_follow_repo(db: Session = Depends(get_db)) -> SQLAlchemyFollowRepository:
+    return SQLAlchemyFollowRepository(db)
+def get_usersta_repo(db: Session = Depends(get_db)) -> SQLAlchemyUserStatsRepository:
+    return SQLAlchemyUserStatsRepository(db)
