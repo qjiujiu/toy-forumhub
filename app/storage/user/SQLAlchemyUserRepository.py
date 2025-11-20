@@ -14,7 +14,6 @@ from app.schemas.user import (
 from app.storage.user.user_interface import IUserRepository
 from app.core.exceptions import UserNotFound
 from app.core.db import transaction
-
 class SQLAlchemyUserRepository(IUserRepository):
     """
     使用 SQLAlchemy 实现的用户仓库
