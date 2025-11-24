@@ -4,6 +4,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.storage.user.SQLAlchemyUserRepository import SQLAlchemyUserRepository
 from app.storage.follow.SQLAlchemyFollowRepository import SQLAlchemyFollowRepository
 from app.storage.user_stats.SQLAlchemyUserStatsRepository import SQLAlchemyUserStatsRepository
+from app.storage.post.SQLAlchemyPostRepository import SQLAlchemyPostRepository
+from app.storage.post_content.SQLAlchemyPostConRepository import SQLAlchemyPostContentRepository
+from app.storage.post_stats.SQLAlchemyPostStatsRepository import SQLAlchemyPostStatsRepository
 
 from fastapi import Depends
 
@@ -36,3 +39,9 @@ def get_follow_repo(db: Session = Depends(get_db)) -> SQLAlchemyFollowRepository
     return SQLAlchemyFollowRepository(db)
 def get_usersta_repo(db: Session = Depends(get_db)) -> SQLAlchemyUserStatsRepository:
     return SQLAlchemyUserStatsRepository(db)
+def get_post_repo(db: Session = Depends(get_db)) -> SQLAlchemyPostRepository:
+    return SQLAlchemyPostRepository(db)
+def get_postcon_repo(db: Session = Depends(get_db)) -> SQLAlchemyPostContentRepository:
+    return SQLAlchemyPostContentRepository(db)
+def get_poststats_repo(db: Session = Depends(get_db)) -> SQLAlchemyPostStatsRepository:
+    return SQLAlchemyPostStatsRepository(db)
