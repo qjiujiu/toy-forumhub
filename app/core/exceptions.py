@@ -83,3 +83,22 @@ class PasswordMismatchError(Exception):
     """旧密码校验失败"""
     def __init__(self, message="Old password does not match"):
         super().__init__(message)
+
+class PostNotFound(Exception):
+    """找不到帖子"""
+    def __init__(self, pid: str | None = None, message: str | None = None):
+        if message:
+            super().__init__(message)
+        else:
+            super().__init__(f"post {pid} not found")
+
+
+class InvalidReviewStatusTransition(Exception):
+    """帖子审核状态非法流转"""
+    def __init__(self, message: str):
+        super().__init__(message)
+
+class ForbiddenAction(Exception):
+    """帖子发布状态非法流转"""
+    def __init__(self, message="Cannot change the publish status of published."):
+        super().__init__(message)
