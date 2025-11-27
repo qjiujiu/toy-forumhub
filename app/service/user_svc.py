@@ -8,6 +8,8 @@ from app.schemas.user import (
     UserDetailOut,
     BatchUsersOut,
     UserPasswordUpdate,
+    BatchUsersAllOut,
+    UserAllOut
 )
 from app.schemas.user_stats import (
     UserStatsOut,
@@ -138,7 +140,8 @@ def soft_delete_user(user_repo: IUserRepository, uid: str) -> bool:
         logger.info(f"Soft deleted user uid={uid}")
     return ok
 
-# , stats_repo: IUserStatsRepository, follow_repo: IFollowRepository,
+
+# ------------------------------------ 管理员用 ----------------------------------------
 def hard_delete_user(user_repo: IUserRepository, uid: str) -> bool:
     """
     通常只有管理员才能调用。
@@ -167,4 +170,110 @@ def hard_delete_user(user_repo: IUserRepository, uid: str) -> bool:
         logger.info(f"Hard deleted user uid={uid}")
     return ok
 
+def admin_get_users(
+    user_repo: IUserRepository,
+    page: int = 0,
+    page_size: int = 10,
+    to_dict: bool = True,
+) -> Dict | BatchUsersAllOut:
+    """
+    管理员：分页查看所有用户（包含软删）
+    """
+    result = user_repo.admin_get_users(
+        page=page,
+        page_size=page_size,
+    )
 
+    logger.info(
+        f"[ADMIN] list all users page={page}, page_size={page_size}, count={result.count}"
+    )
+
+    return result.model_dump() if to_dict else result
+
+def admin_get_user_by_uid(
+    user_repo: IUserRepository,
+    uid: str,
+    to_dict: bool = True,
+) -> Dict | UserAllOut:
+    """
+    管理员根据 uid 获取用户详情：
+    - 不过滤软删除（数据层已实现 admin_get_user_by_uid）
+    - 响应体为 UserAllOut（包含更多字段）
+    """
+    user = user_repo.admin_get_user_by_uid(uid)
+    if not user:
+        raise UserNotFound(f"user {uid} not found")
+
+    logger.info(f"[ADMIN] get user uid={uid}")
+    return user.model_dump() if to_dict else user
+
+def admin_get_users_by_username(
+    user_repo: IUserRepository,
+    username: str,
+    page: int = 0,
+    page_size: int = 10,
+    to_dict: bool = True,
+) -> Dict | BatchUsersAllOut:
+    """
+    管理员根据用户名分页查询用户：
+    - 不过滤软删除
+    - 返回 BatchUsersAllOut
+    """
+    result = user_repo.admin_get_users_by_username(
+        username=username,
+        page=page,
+        page_size=page_size,
+    )
+
+    logger.info(
+        f"[ADMIN] get users by username='{username}', "
+        f"page={page}, page_size={page_size}, count={result.count}"
+    )
+
+    return result.model_dump() if to_dict else result
+
+def admin_list_deleted_users(
+    user_repo: IUserRepository,
+    page: int = 0,
+    page_size: int = 10,
+    to_dict: bool = True,
+) -> Dict | BatchUsersAllOut:
+    """
+    管理员查看所有软删除用户：
+    - 只查 deleted_at IS NOT NULL
+    - 返回 BatchUsersAllOut
+    """
+    result = user_repo.admin_list_deleted_users(
+        page=page,
+        page_size=page_size,
+    )
+
+    logger.info(
+        f"[ADMIN] list deleted users page={page}, "
+        f"page_size={page_size}, count={result.count}"
+    )
+
+    return result.model_dump() if to_dict else result
+
+def admin_list_abnormal_status_users(
+    user_repo: IUserRepository,
+    page: int = 0,
+    page_size: int = 10,
+    to_dict: bool = True,
+) -> Dict | BatchUsersAllOut:
+    """
+    管理员查看异常状态用户：
+    - “异常状态”的定义由数据层决定（例如 status = 1/2）
+    - 返回 BatchUsersAllOut
+    """
+    result = user_repo.admin_list_abnormal_status_users(
+        page=page,
+        page_size=page_size,
+    )
+
+    logger.info(
+        f"[ADMIN] list abnormal status users page={page}, "
+        f"page_size={page_size}, count={result.count}"
+    )
+
+    return result.model_dump() if to_dict else result
