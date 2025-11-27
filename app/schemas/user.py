@@ -56,6 +56,11 @@ class UserAllOut(BaseModel):
     role: Optional[UserRole]
     status: Optional[UserStatus]
 
+    last_login_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
+
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 class UserDetailOut(UserOut):
@@ -80,6 +85,10 @@ class BatchUsersOut(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class BatchUsersAllOut(BaseModel):
+    total: int
+    count: int
+    users: List[UserAllOut]
 
 class UserUpdate(BaseModel):
     """
