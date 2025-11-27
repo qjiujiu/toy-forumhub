@@ -9,6 +9,8 @@ from app.schemas.user import (
     BatchUsersOut,
     UserUpdate,
     AdminUserUpdate,
+    BatchUsersAllOut,
+    UserAllOut
 )
 
 class IUserRepository(Protocol):
@@ -86,4 +88,19 @@ class IUserRepository(Protocol):
         硬删除用户（真正从数据库中删除记录）
         返回是否删除成功
         """
+        ...
+
+    def admin_get_users(self, page: int, page_size: int) -> BatchUsersAllOut:
+        ...
+    
+    def admin_get_user_by_uid(self, uid: str) -> Optional[UserAllOut]:
+        ...
+
+    def admin_get_users_by_username(self, username: str, page: int, page_size: int) -> BatchUsersAllOut:
+        ...
+
+    def admin_list_deleted_users(self, page: int, page_size: int) -> BatchUsersAllOut:
+        ...
+
+    def admin_list_abnormal_status_users(self, page: int, page_size: int) -> BatchUsersAllOut:
         ...

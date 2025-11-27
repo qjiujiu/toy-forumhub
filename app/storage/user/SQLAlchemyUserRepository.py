@@ -10,10 +10,13 @@ from app.schemas.user import (
     BatchUsersOut,
     UserUpdate,
     AdminUserUpdate,
+    BatchUsersAllOut,
+
 )
 from app.storage.user.user_interface import IUserRepository
 from app.core.exceptions import UserNotFound
 from app.core.db import transaction
+from sqlalchemy import or_
 class SQLAlchemyUserRepository(IUserRepository):
     """
     使用 SQLAlchemy 实现的用户仓库
@@ -25,7 +28,10 @@ class SQLAlchemyUserRepository(IUserRepository):
 
     def _base_query(self):
         """内部封装一个基础查询（过滤软删除）"""
-        return self.db.query(User).filter(User.deleted_at.is_(None))
+        return self.db.query(User).filter(
+            User.deleted_at.is_(None),
+            User.status == 0,
+            )
 
     def get_user_by_uid(self, uid: str) -> Optional[UserAllOut]:
         user = self._base_query().filter(User.uid == uid).first()
@@ -184,6 +190,8 @@ class SQLAlchemyUserRepository(IUserRepository):
 
         return True
     
+
+    # ------------ 管理员功能(未测试) -------------------------
     def hard_delete_user(self, uid: str) -> bool:
         """
         直接物理删除用户，不再保留记录
@@ -198,3 +206,85 @@ class SQLAlchemyUserRepository(IUserRepository):
             self.db.delete(user)
 
         return True
+
+    def admin_get_users(self, page: int, page_size: int) -> BatchUsersAllOut:
+        base_q = (
+            self.db.query(User)
+            .order_by(User.created_at.desc())
+        )
+
+        total = base_q.count()
+
+        users_orm = (
+            base_q
+            .offset(page * page_size)   # page 从 0 开始
+            .limit(page_size)
+            .all()
+        )
+
+        items = [UserAllOut.model_validate(u) for u in users_orm]
+
+        return BatchUsersAllOut(
+            total=total,
+            count=len(items),
+            users=items,
+        )
+
+    def admin_get_user_by_uid(self, uid: str) -> Optional[UserAllOut]:
+        user = self.db.query(User).filter(User.uid == uid).first()
+        return UserAllOut.model_validate(user) if user else None
+    
+    def admin_get_users_by_username(self, username: str, page: int, page_size: int) -> BatchUsersAllOut:
+        base_q = (
+            self.db.query(User)
+            .filter(User.username == username)
+            .order_by(User.created_at.desc())
+        )
+
+        total = base_q.count()
+
+        users_orm = (
+            base_q
+            .offset(page * page_size)   # page 从 0 开始
+            .limit(page_size)
+            .all()
+        )
+
+        users_out = [UserAllOut.model_validate(u) for u in users_orm]
+
+        return BatchUsersAllOut(
+            total=total,
+            count=len(users_out),
+            users=users_out,
+        )
+    
+    def admin_list_deleted_users(self, page: int, page_size: int) -> BatchUsersAllOut:
+        base_q = (
+            self.db.query(User)
+            .filter(User.deleted_at.is_not(None))
+            .order_by(User._id.desc())
+        )
+        total = base_q.count()
+
+        users = (base_q.offset(page * page_size).limit(page_size).all())
+
+        items: list[UserAllOut] = []
+        items = [UserAllOut.model_validate(user) for user in users]
+
+        return BatchUsersAllOut(total=total, count=len(items), users=items,)
+    
+    def admin_list_abnormal_status_users(self, page: int, page_size: int) -> BatchUsersAllOut:
+        base_q = (
+            self.db.query(User)
+            .filter(or_(User.status == 1,
+                    User.status == 2))
+            .order_by(User._id.desc())
+        )
+        total = base_q.count()
+
+        users = (base_q.offset(page * page_size).limit(page_size).all())
+
+        items: list[UserAllOut] = []
+        items = [UserAllOut.model_validate(user) for user in users]
+
+        return BatchUsersAllOut(total=total, count=len(items), users=items,)
