@@ -1,13 +1,12 @@
-from sqlalchemy import Column, Integer, String, SmallInteger, TIMESTAMP, Text, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import Column, Integer, String, SmallInteger, TIMESTAMP, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 import datetime
 from app.models.base import Base
 import uuid
-from sqlalchemy import Enum as SAEnum  # SQLAlchemy 数据类型
-from enum import Enum as PyEnum  # Python 原生枚举
-
+from enum import IntEnum 
+from app.core.time import now_utc8
 # 点赞目标类型
-class LikeTargetType(PyEnum):
+class LikeTargetType(IntEnum):
     POST = 0  # 帖子
     COMMENT = 1  # 评论
 
@@ -15,16 +14,17 @@ class Like(Base):
     """ 点赞模型，对应数据库中的 likes 表。
     
         CREATE TABLE IF NOT EXISTS likes (
-            id INT AUTO_INCREMENT PRIMARY KEY,              -- 系统主键（自增）
-            lid VARCHAR(36) UNIQUE,                         -- 业务主键（UUID）
-            user_id VARCHAR(36) NOT NULL,                                 -- 用户 ID
-            target_type SMALLINT,                        -- 点赞目标类型（0: 帖子, 1: 评论）
-            target_id VARCHAR(36) NOT NULL,                               -- 点赞目标 ID（帖子 ID 或 评论 ID）
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- 点赞时间
-            deleted_at TIMESTAMP NULL,                   -- 软删除时间戳
+            _id INT AUTO_INCREMENT PRIMARY KEY,              -- 系统主键（自增）
+            lid VARCHAR(36) UNIQUE,                          -- 业务主键（UUID）
+            user_id VARCHAR(36) NOT NULL,                    -- 用户 ID (FK -> users.id)
+            target_type SMALLINT,                            -- 点赞目标类型（0: 帖子, 1: 评论）
+            target_id VARCHAR(36) NOT NULL,                  -- 点赞目标 ID（帖子 ID 或 评论 ID）
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  -- 点赞时间
+            deleted_at TIMESTAMP NULL,                       -- 软删除时间戳
             
             CONSTRAINT uq_likes_user_target UNIQUE (user_id, target_type, target_id),
             CONSTRAINT fk_likes_user FOREIGN KEY (user_id) REFERENCES users(uid)
+            FOREIGN KEY (user_id) REFERENCES users(uid),   -- 外键关联到用户表
 
         );
         -- 索引建议：
@@ -35,14 +35,14 @@ class Like(Base):
     
     __tablename__ = "likes"
     # 系统主键（内部使用，不对外暴露）
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    _id = Column(Integer, primary_key=True, autoincrement=True)
     # 业务主键（UUID，对外使用）
     lid = Column(String(36), unique=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.uid"), nullable=False)  # 用户 ID
-    target_type = Column(SAEnum(LikeTargetType), nullable=False)  # 点赞目标类型（0: 帖子, 1: 评论）
+    target_type = Column(SmallInteger, nullable=False)  # 点赞目标类型（0: 帖子, 1: 评论）
     target_id = Column(String(36), nullable=False)  # 点赞目标 ID（帖子或评论 ID）
-    created_at = Column(TIMESTAMP, default=datetime.datetime.utcnow)  # 点赞时间
-    deleted_at = Column(TIMESTAMP, nullable=True)  # 软删除时间戳
+    created_at = Column(TIMESTAMP(timezone=True), default=now_utc8)  # 点赞时间
+    deleted_at = Column(TIMESTAMP(timezone=True), nullable=True)  # 软删除时间戳
 
     # # 反向引用：该点赞的用户
     # user = relationship("User", back_populates="likes")
