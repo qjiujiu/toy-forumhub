@@ -1,0 +1,10 @@
+# app/models/__init__.py
+import app.models.user
+import app.models.follow
+import app.models.user_stats
+import app.models.post
+import app.models.post_content
+import app.models.post_stats
+import app.models.comment
+import app.models.comment_content
+import app.models.like
