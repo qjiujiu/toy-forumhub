@@ -7,6 +7,8 @@ from app.schemas.user import (
     UserOut,
     BatchUsersOut,
     UserPasswordUpdate,
+    BatchUsersAllOut,
+    UserAllOut
 )
 from app.schemas.user_stats import UserStatsWithUserOut
 from app.schemas.follow import BatchFollowsOut
@@ -31,6 +33,7 @@ from app.core.exceptions import (
     NotFollowingError,
 )
 from app.core.logx import logger
+from fastapi.encoders import jsonable_encoder
 
 users_router = APIRouter(prefix="/users", tags=["users"])
 
@@ -207,7 +210,7 @@ def soft_delete_user(uid: str, user_repo: IUserRepository = Depends(get_user_rep
     except Exception as e:
         return BizResponse(data=False, msg=str(e), status_code=500)
     
-# 只有管理员可以使用的硬删除接口
+# ================================== 管理员用 ==================================
 @users_router.delete("/hard/id/{uid}")
 def hard_deleted_user(uid: str, user_repo: IUserRepository = Depends(get_user_repo)):
     try:
@@ -222,3 +225,116 @@ def hard_deleted_user(uid: str, user_repo: IUserRepository = Depends(get_user_re
         return BizResponse(data=None, msg=str(e), status_code=404)
     except Exception as e:
         return BizResponse(data=False, msg=str(e), status_code=500)
+
+@users_router.get("/admin", response_model=BatchUsersAllOut)
+def admin_get_users(
+    page: int = 0,
+    page_size: int = 10,
+    user_repo: IUserRepository = Depends(get_user_repo),
+):
+    """
+    管理员：分页查看所有用户（包含软删）
+    """
+    try:
+        result = user_svc.admin_get_users(
+            user_repo=user_repo,
+            page=page,
+            page_size=page_size,
+            to_dict=True,
+        )
+        return BizResponse(data=jsonable_encoder(result))
+    except Exception as e:
+        logger.exception("[ADMIN] get users failed")
+        return BizResponse(data=list(), msg=str(e), status_code=500)   
+
+@users_router.get("/admin/id/{uid}", response_model=UserAllOut)
+def admin_get_user_by_uid(
+    uid: str,
+    user_repo: IUserRepository = Depends(get_user_repo),
+):
+    """
+    管理员根据 uid 获取用户详情：
+    - 不过滤软删除
+    - 返回 UserAllOut（字段更全）
+    """
+    try:
+        user = user_svc.admin_get_user_by_uid(
+            user_repo=user_repo,
+            uid=uid,
+            to_dict=True,
+        )
+        return BizResponse(data=jsonable_encoder(user))
+    except UserNotFound as e:
+        return BizResponse(data=None, msg=str(e), status_code=404)
+    except Exception as e:
+        logger.exception(f"[ADMIN] get user by uid failed: {e}")
+        return BizResponse(data=None, msg=str(e), status_code=500)
+
+@users_router.get("/admin/username/{username}", response_model=BatchUsersAllOut)
+def admin_get_users_by_username(
+    username: str,
+    page: int = 0,
+    page_size: int = 10,
+    user_repo: IUserRepository = Depends(get_user_repo),
+):
+    """
+    管理员根据用户名分页查询用户：
+    - 不过滤软删除
+    - 返回 BatchUsersAllOut
+    """
+    try:
+        result = user_svc.admin_get_users_by_username(
+            user_repo=user_repo,
+            username=username,
+            page=page,
+            page_size=page_size,
+            to_dict=True,
+        )
+        return BizResponse(data=jsonable_encoder(result))
+    except Exception as e:
+        logger.exception(f"[ADMIN] get users by username failed: {e}")
+        return BizResponse(data=None, msg=str(e), status_code=500)
+
+
+@users_router.get("/admin/deleted", response_model=BatchUsersAllOut)
+def admin_list_deleted_users(
+    page: int = 0,
+    page_size: int = 10,
+    user_repo: IUserRepository = Depends(get_user_repo),
+):
+    """
+    管理员查看所有软删除用户：
+    - deleted_at IS NOT NULL
+    """
+    try:
+        result = user_svc.admin_list_deleted_users(
+            user_repo=user_repo,
+            page=page,
+            page_size=page_size,
+            to_dict=True,
+        )
+        return BizResponse(data=jsonable_encoder(result))
+    except Exception as e:
+        logger.exception(f"[ADMIN] list deleted users failed: {e}")
+        return BizResponse(data=None, msg=str(e), status_code=500)
+
+@users_router.get("/admin/abnormal-status", response_model=BatchUsersAllOut)
+def admin_list_abnormal_status_users(
+    page: int = 0,
+    page_size: int = 10,
+    user_repo: IUserRepository = Depends(get_user_repo),
+):
+    """
+    管理员查看异常状态用户（冻结与禁用）：
+    """
+    try:
+        result = user_svc.admin_list_abnormal_status_users(
+            user_repo=user_repo,
+            page=page,
+            page_size=page_size,
+            to_dict=True,
+        )
+        return BizResponse(data=jsonable_encoder(result))
+    except Exception as e:
+        logger.exception(f"[ADMIN] list abnormal status users failed: {e}")
+        return BizResponse(data=None, msg=str(e), status_code=500)
