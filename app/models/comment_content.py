@@ -12,8 +12,8 @@ class CommentContent(Base):
             ccid VARCHAR(36) NOT NULL UNIQUE,               -- 业务主键（UUID，对外使用）
             comment_id VARCHAR(36) NOT NULL,                -- 评论ID（FK -> comments.cid)
             content TEXT NOT NULL,                          -- 评论内容
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,                             -- 创建时间
-            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP  -- 更新时间
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,                              -- 创建时间
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  -- 更新时间
             FOREIGN KEY (comment_id) REFERENCES comments(cid)  -- 外键关联评论内容表
         );
     """
