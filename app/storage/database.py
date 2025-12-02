@@ -7,6 +7,8 @@ from app.storage.user_stats.SQLAlchemyUserStatsRepository import SQLAlchemyUserS
 from app.storage.post.SQLAlchemyPostRepository import SQLAlchemyPostRepository
 from app.storage.post_content.SQLAlchemyPostConRepository import SQLAlchemyPostContentRepository
 from app.storage.post_stats.SQLAlchemyPostStatsRepository import SQLAlchemyPostStatsRepository
+from app.storage.comment.SQLAlchemyCommentRepository import SQLAlchemyCommentRepository
+from app.storage.comment_content.SQLAlchemyComConRepository import SQLAlchemyCommentContentRepository
 
 from fastapi import Depends
 
@@ -45,3 +47,7 @@ def get_postcon_repo(db: Session = Depends(get_db)) -> SQLAlchemyPostContentRepo
     return SQLAlchemyPostContentRepository(db)
 def get_poststats_repo(db: Session = Depends(get_db)) -> SQLAlchemyPostStatsRepository:
     return SQLAlchemyPostStatsRepository(db)
+def get_comment_repo(db: Session = Depends(get_db)) -> SQLAlchemyCommentRepository:
+    return SQLAlchemyCommentRepository(db)
+def get_comcon_repo(db: Session = Depends(get_db)) -> SQLAlchemyCommentContentRepository:
+    return SQLAlchemyCommentContentRepository(db)
