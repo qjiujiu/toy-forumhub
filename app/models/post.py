@@ -67,7 +67,7 @@ class Post(Base):
     # 反向引用：该帖子的作者
     author = relationship("User", back_populates="posts")
     # 双向引用：该帖子的评论
-    # comments = relationship("Comment", back_populates="post", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="post", cascade="all, delete-orphan")
     # 单向引用：该帖子的内容
     post_content = relationship("PostContent", uselist=False, cascade="all, delete-orphan")
     # 单向引用：该帖子的统计信息
