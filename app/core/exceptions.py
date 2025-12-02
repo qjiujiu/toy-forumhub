@@ -102,3 +102,17 @@ class ForbiddenAction(Exception):
     """帖子发布状态非法流转"""
     def __init__(self, message="Cannot change the publish status of published."):
         super().__init__(message)
+
+class CommentNotFound(Exception):
+    """找不到帖子"""
+    def __init__(self, cid: str | None = None, message: str | None = None):
+        if message:
+            super().__init__(message)
+        else:
+            super().__init__(f"comment {cid} not found")
+
+class CommentNotSoftDeletedError(Exception):
+    """只有已软删除的评论才允许被硬删除"""
+    def __init__(self, message: str = "comment must be soft-deleted before hard delete"):
+        self.message = message
+        super().__init__(message)
