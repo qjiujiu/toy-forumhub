@@ -58,7 +58,7 @@ class User(Base):
     # 反向引用：该用户的所有帖子
     posts = relationship("Post", back_populates="author", cascade="all, delete-orphan")
     # 反向引用：该用户的所有评论
-    # comments = relationship("Comment", back_populates="author", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="author", cascade="all, delete-orphan")
     # 单向引用：该用户的所有点赞记录
     # likes = relationship("Like", cascade="all, delete-orphan", cascade="all, delete-orphan")
     # 单向引用：该用户的统计信息（关注数和粉丝数）
