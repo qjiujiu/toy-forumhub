@@ -67,7 +67,7 @@ class Post(Base):
     # 反向引用：该帖子的作者
     author = relationship("User", back_populates="posts")
     # 双向引用：该帖子的评论
-    comments = relationship("Comment", back_populates="post", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="post")
     # 单向引用：该帖子的内容
     post_content = relationship("PostContent", uselist=False, cascade="all, delete-orphan")
     # 单向引用：该帖子的统计信息
@@ -76,7 +76,7 @@ class Post(Base):
     # 帖子本身可以展示点赞数，无需额外点赞表关联
     # 单向引用：该帖子的点赞
     # 还是使用 relationship 关联点赞表与帖子表之间的数据，为了方便查询哪些用户点赞这篇帖子
-    likes = relationship("Like", primaryjoin="and_(Like.target_id == Post.pid, Like.target_type == 0)", foreign_keys="Like.target_id", viewonly=True, cascade="all, delete-orphan")
+    likes = relationship("Like", primaryjoin="and_(Like.target_id == Post.pid, Like.target_type == 0)", foreign_keys="Like.target_id", viewonly=True)
 
     __table_args__ = (
         # 保证业务主键 pid 唯一
