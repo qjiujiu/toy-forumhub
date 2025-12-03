@@ -403,3 +403,32 @@ def admin_hard_delete_post(
     except Exception as e:
         logger.exception(e)
         return BizResponse(data=False, msg=str(e), status_code=500)
+    
+@posts_router.put("/admin/restore/{pid}")
+def admin_restore_post(
+    pid: str,
+    post_repo: IPostRepository = Depends(get_post_repo),
+):
+    """
+    管理员恢复软删除帖子：
+    - 必须是软删除状态才能恢复
+    - 未软删除 → 返回 False
+    - 帖子不存在 → 404
+    """
+    try:
+        ok = post_svc.restore_post(
+            post_repo=post_repo,
+            pid=pid,
+        )
+
+        if not ok:
+            # 存在但未软删除，属于业务无效操作
+            return BizResponse(data=False, msg=f"post {pid} is not soft-deleted", status_code=400,)
+
+        return BizResponse(data=True)
+
+    except PostNotFound as e:
+        return BizResponse(data=None, msg=str(e), status_code=404)
+    except Exception as e:
+        logger.exception("admin_restore_post error")
+        return BizResponse(data=None, msg=str(e),status_code=500)
