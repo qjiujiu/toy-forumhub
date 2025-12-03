@@ -116,3 +116,46 @@ class CommentNotSoftDeletedError(Exception):
     def __init__(self, message: str = "comment must be soft-deleted before hard delete"):
         self.message = message
         super().__init__(message)
+
+class AlreadyLikedError(Exception):
+    """用户已经对该目标点过赞（未取消），用于阻止重复点赞导致的计数增加"""
+    def __init__(self, user_id: str, target_type, target_id: str):
+        self.user_id = user_id
+        self.target_type = target_type
+        self.target_id = target_id
+        super().__init__(f"user {user_id} already liked {target_type} {target_id}")
+
+
+class NotLikedError(Exception):
+    """
+    取消点赞操作失败：
+    - 情况 1：用户从未对该目标点赞
+    - 情况 2：用户之前点过赞，但已取消（软删除状态）
+    """
+
+    def __init__(self, user_id: str, target_type, target_id: str, message: str = None):
+        if message is None:
+            message = (
+                f"user {user_id} has not liked target_type={target_type}, "
+                f"target_id={target_id}"
+            )
+        self.user_id = user_id
+        self.target_type = target_type
+        self.target_id = target_id
+        super().__init__(message)
+
+class HardDeleteFollowRequiresSoftDeleteError(Exception):
+    """
+    当管理员尝试硬删除关注记录时：
+    - 若该关注关系未处于软删除状态（deleted_at is NULL）
+    - 则必须先软删除才能进入硬删除
+
+    用于业务层阻止不正确的删除流程
+    """
+
+    def __init__(self, user_id: str, followed_user_id: str):
+        self.user_id = user_id
+        self.followed_user_id = followed_user_id
+        super().__init__(
+            f"follow relation {user_id} -> {followed_user_id} must be soft-deleted before hard delete"
+        )
