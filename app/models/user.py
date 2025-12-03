@@ -56,14 +56,14 @@ class User(Base):
     deleted_at = Column(TIMESTAMP(timezone=True), nullable=True)  # 软删除时间戳
 
     # 反向引用：该用户的所有帖子
-    posts = relationship("Post", back_populates="author", cascade="all, delete-orphan")
+    posts = relationship("Post", back_populates="author")
     # 反向引用：该用户的所有评论
-    comments = relationship("Comment", back_populates="author", cascade="all, delete-orphan")
-    # 单向引用：该用户的所有点赞记录
-    # likes = relationship("Like", cascade="all, delete-orphan", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="author")
+    # 反向引用：该用户的所有点赞记录
+    likes = relationship("Like")
     # 单向引用：该用户的统计信息（关注数和粉丝数）
     userstats = relationship("UserStats", uselist=False, cascade="all, delete-orphan")
     # 我关注的人（关注者是我 -> 多个 Follow 记录）
-    followings = relationship("Follow", foreign_keys="Follow.user_id", back_populates="user", cascade="all, delete-orphan")
+    followings = relationship("Follow", foreign_keys="Follow.user_id", back_populates="user")
     # 我的粉丝（被关注者是我 -> 多个 Follow 记录）
-    followers = relationship("Follow", foreign_keys="Follow.followed_user_id", back_populates="followed_user", cascade="all, delete-orphan")
+    followers = relationship("Follow", foreign_keys="Follow.followed_user_id", back_populates="followed_user")
