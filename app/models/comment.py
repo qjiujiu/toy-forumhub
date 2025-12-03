@@ -5,6 +5,9 @@ from app.models.base import Base
 from enum import IntEnum
 from app.core.time import now_utc8
 
+# 评论的审核制度采用 先发后审：用户评论直接展示，后台异步审核，检测到违规在前端折叠或删除
+# 后续可以采用人工加机器结合的方式审
+
 # 评论显示状态
 class CommentStatus(IntEnum):
     NORMAL = 0    # 正常展示
