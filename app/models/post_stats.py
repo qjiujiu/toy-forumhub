@@ -3,9 +3,6 @@ from sqlalchemy.orm import relationship
 from app.models.base import Base
 import uuid
 
-# 评论的审核制度采用 先发后审：用户评论直接展示，后台异步审核，检测到违规在前端折叠或删除
-# 后续可以采用人工加机器结合的方式审
-
 class PostStats(Base):
     """ 帖子统计表，存储帖子的统计数据，比如评论数点赞数，后续可扩展。
 
