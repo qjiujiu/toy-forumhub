@@ -20,11 +20,12 @@ class Like(Base):
             target_type SMALLINT,                            -- 点赞目标类型（0: 帖子, 1: 评论）
             target_id VARCHAR(36) NOT NULL,                  -- 点赞目标 ID（帖子 ID 或 评论 ID）
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  -- 点赞时间
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  -- 更新时间
             deleted_at TIMESTAMP NULL,                       -- 软删除时间戳
             
             CONSTRAINT uq_likes_user_target UNIQUE (user_id, target_type, target_id),
-            CONSTRAINT fk_likes_user FOREIGN KEY (user_id) REFERENCES users(uid)
-            FOREIGN KEY (user_id) REFERENCES users(uid),   -- 外键关联到用户表
+            CONSTRAINT fk_likes_user FOREIGN KEY (user_id) REFERENCES users(uid),
+            FOREIGN KEY (user_id) REFERENCES users(uid)      -- 外键关联到用户表
 
         );
         -- 索引建议：
@@ -42,14 +43,15 @@ class Like(Base):
     target_type = Column(SmallInteger, nullable=False)  # 点赞目标类型（0: 帖子, 1: 评论）
     target_id = Column(String(36), nullable=False)  # 点赞目标 ID（帖子或评论 ID）
     created_at = Column(TIMESTAMP(timezone=True), default=now_utc8)  # 点赞时间
+    updated_at = Column(TIMESTAMP(timezone=True), default=now_utc8, onupdate=now_utc8)  # 更新时间
     deleted_at = Column(TIMESTAMP(timezone=True), nullable=True)  # 软删除时间戳
 
     # # 反向引用：该点赞的用户
     # user = relationship("User", back_populates="likes")
     # # 反向引用：该点赞的帖子（如果是帖子点赞）
-    # post = relationship("Post", back_populates="likes", uselist=False, primaryjoin="and_(Like.target_id==Post.pid, Like.target_type==0)", viewonly=True)
+    # post = relationship("Post", back_populates="likes", uselist=False, primaryjoin="and_(foreign(Like.target_id) == Post.pid, Like.target_type == 0)", viewonly=True)
     # # 反向引用：该点赞的评论区（如果是评论区点赞）
-    # comment_sections = relationship("CommentSection", back_populates="likes", uselist=False, primaryjoin="and_(Like.target_id==CommentSection.csid, Like.target_type==LikeTargetType.COMMENT)", viewonly=True)
+    # comment = relationship("Comment", back_populates="likes", uselist=False, primaryjoin="and_(foreign(Like.target_id) == Comment.cid, Like.target_type == 1)", viewonly=True)
     
     __table_args__ = (
         # 每个用户对同一目标只能点赞一次（业务约束）
