@@ -28,6 +28,19 @@ class FollowOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class FollowAdminOut(BaseModel):
+    """
+    单条关注关系输出：
+    - 用于创建关注后的返回
+    - 查询用户是否关注某人
+    - 显示关注列表中的单项
+    """
+    user_id: str               # 关注者 UID
+    followed_user_id: str      # 被关注者 UID
+    deleted_at:  Optional[datetime] = None # 删除时间
+
+    model_config = ConfigDict(from_attributes=True)
+
 class FollowUserOut(BaseModel):
     """
     在关注列表 / 粉丝列表展示中，更实用的结构：
