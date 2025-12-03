@@ -290,7 +290,7 @@ def update_comment_status(
         return BizResponse(data=None, msg=str(e), status_code=500)
 
 
-@comments_router.delete("/{cid}")
+@comments_router.delete("/soft/{cid}")
 def soft_delete_comment(
     cid: str,
     comment_repo: ICommentRepository = Depends(get_comment_repo),
