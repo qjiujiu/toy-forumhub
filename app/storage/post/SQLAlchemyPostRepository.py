@@ -410,3 +410,23 @@ class SQLAlchemyPostRepository(IPostRepository):
             self.db.delete(post)
 
         return True
+
+    def restore_post(self, pid: str) -> bool:
+        """
+        恢复帖子软删除：deleted_at → NULL
+        """
+        post = (
+            self.db.query(Post)   # 管理员可见软删除
+            .filter(Post.pid == pid)
+            .first()
+        )
+        if not post:
+            return False
+
+        if post.deleted_at is None:
+            return False
+
+        with transaction(self.db):
+            post.deleted_at = None
+
+        return True
