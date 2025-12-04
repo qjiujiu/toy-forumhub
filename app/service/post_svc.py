@@ -234,7 +234,7 @@ def review_post(post_repo: IPostRepository, pid: str, data: PostReviewUpdate, to
     return updated.model_dump() if to_dict else updated
 
 
-#---------------------------------- 管理员：查阅，硬删除 -------------------------------------
+#---------------------------------- 管理员：查阅，硬删除，恢复帖子 -------------------------------------
 
 def admin_get_post_by_pid(post_repo: IPostRepository, pid: str, to_dict: bool = True,) -> Dict | PostAdminOut:
     """
@@ -309,3 +309,20 @@ def hard_delete_post(post_repo: IPostRepository, pid: str,) -> bool:
     else:
         logger.warning(f"Hard delete failed, post pid={pid} not found")
     return ok
+
+def restore_post(
+    post_repo: IPostRepository,
+    pid: str,
+) -> bool:
+    post_admin = post_repo.admin_get_post_by_pid(pid)
+    if not post_admin:
+        raise PostNotFound(message=f"post {pid} not found")
+
+    ok = post_repo.restore_post(pid)
+    if not ok:
+        # 存在但未软删，直接返回 False 或你可以自定义一个 NotSoftDeletedError
+        logger.warning(f"[ADMIN] restore post no-op, pid={pid} not soft-deleted")
+        return False
+
+    logger.info(f"[ADMIN] restored post pid={pid}")
+    return True
