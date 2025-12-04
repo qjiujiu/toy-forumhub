@@ -12,6 +12,7 @@ from app.schemas.follow import (
     FollowUserOut,
     BatchFollowsOut,
     FollowCancel,
+    FollowAdminOut,
 )
 from app.schemas.user import UserOut
 from app.storage.follow.follow_interface import IFollowRepository
@@ -93,6 +94,29 @@ class SQLAlchemyFollowRepository(IFollowRepository):
 
         return True
 
+    def hard_delete_follow(self, user_id: str, followed_user_id: str) -> bool:
+        """
+        硬删除关注记录：
+        - 不关心 deleted_at 状态，直接删除这两个人之间的关注关系
+        - 如果不存在记录，返回 False
+        """
+        follow: Optional[Follow] = (
+            self.db.query(Follow)
+            .filter(
+                Follow.user_id == user_id,
+                Follow.followed_user_id == followed_user_id,
+            )
+            .first()
+        )
+
+        if not follow:
+            return False
+
+        with transaction(self.db):
+            self.db.delete(follow)
+
+        return True
+
     def hard_delete_all_by_user(self, user_id: str) -> int:
         """
         删除与某个用户相关的所有关注记录（双向）
@@ -115,7 +139,7 @@ class SQLAlchemyFollowRepository(IFollowRepository):
 
     def get_follow(self, user_id: str, followed_user_id: str) -> Optional[FollowOut]:
         """
-        获取有效的关注关系
+        用户获取有效的关注关系
         """
         follow = (
             self._active_query()
@@ -126,6 +150,20 @@ class SQLAlchemyFollowRepository(IFollowRepository):
             .first()
         )
         return FollowOut.model_validate(follow) if follow else None
+
+    def admin_get_follow(self, user_id: str, followed_user_id: str) -> Optional[FollowAdminOut]:
+        """
+        管理员获取关注关系
+        """
+        follow = (
+            self.db.query(Follow)
+            .filter(
+                Follow.user_id == user_id,
+                Follow.followed_user_id == followed_user_id,
+            )
+            .first()
+        )
+        return FollowAdminOut.model_validate(follow) if follow else None
 
     def is_following(self, user_id: str, followed_user_id: str) -> bool:
         """

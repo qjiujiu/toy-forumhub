@@ -6,6 +6,7 @@ from app.schemas.follow import (
     FollowUserOut,
     BatchFollowsOut,
     FollowCancel,
+    FollowAdminOut,
 )
 
 
@@ -37,6 +38,12 @@ class IFollowRepository(Protocol):
         """
         ...
 
+    def admin_get_follow(self, user_id: str, followed_user_id: str) -> Optional[FollowAdminOut]:
+        """
+        管理员获取关注关系（包含软删除）
+        """
+        ...
+
     def is_following(self, user_id: str, followed_user_id: str) -> bool:
         """
         判断 user_id 是否正在关注 followed_user_id（软删除的不算）
@@ -64,6 +71,13 @@ class IFollowRepository(Protocol):
         """
         ...
 
+    def hard_delete_follow(self, user_id: str, followed_user_id: str) -> bool:
+        """
+        硬删除关注记录(一条)：
+        - 不关心 deleted_at 状态，直接删除这两个人之间的关注关系
+        - 如果不存在记录，返回 False
+        """
+        ...
 
     def hard_delete_all_by_user(self, user_id: str) -> int:
         """
@@ -72,3 +86,4 @@ class IFollowRepository(Protocol):
         - 返回删除条数
         """
         ...
+
