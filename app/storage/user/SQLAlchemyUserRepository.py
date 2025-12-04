@@ -27,7 +27,7 @@ class SQLAlchemyUserRepository(IUserRepository):
         self.db = db
 
     def _base_query(self):
-        """内部封装一个基础查询（过滤软删除）"""
+        """内部封装一个基础查询（过滤软删除和状态不正常的用户）"""
         return self.db.query(User).filter(
             User.deleted_at.is_(None),
             User.status == 0,
@@ -191,7 +191,7 @@ class SQLAlchemyUserRepository(IUserRepository):
         return True
     
 
-    # ------------ 管理员功能(未测试) -------------------------
+    # ------------ 管理员功能 -------------------------
     def hard_delete_user(self, uid: str) -> bool:
         """
         直接物理删除用户，不再保留记录
