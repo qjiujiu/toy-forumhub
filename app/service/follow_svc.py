@@ -16,6 +16,7 @@ from app.core.exceptions import (
     FollowYourselfError,
     AlreadyFollowingError,
     NotFollowingError,
+    HardDeleteFollowRequiresSoftDeleteError,
 )
 logger.is_debug(True)
 
@@ -33,9 +34,12 @@ def follow_user(follow_repo: IFollowRepository, stats_repo: IUserStatsRepository
     current_uid = follow.user_id
     target_uid = follow.followed_user_id
 
+    current_user = user_repo.get_user_by_uid(uid=current_uid)
+    if not current_user:
+        raise UserNotFound(message=f"current_user {current_uid} not found")
     target_user = user_repo.get_user_by_uid(uid=target_uid)
     if not target_user:
-        raise UserNotFound(f"target_user {target_uid} not found")
+        raise UserNotFound(message=f"target_user {target_uid} not found")
 
     if current_uid == target_uid:
         raise FollowYourselfError("cannot follow yourself")
@@ -79,6 +83,71 @@ def cancel_follow(follow_repo: IFollowRepository, stats_repo: IUserStatsReposito
 
     return True
 
+def hard_delete_follow(
+    follow_repo: IFollowRepository,
+    user_repo: IUserRepository,
+    data: FollowCancel,
+) -> bool:
+    """
+    管理员硬删除关注关系（需要先软删除）：
+
+    1. 校验双方用户存在
+    2. admin_get_follow 查询关注记录（包含 deleted_at）
+    3. 如果不存在 → 可以认为不存在这条关系（看你要不要抛 NotFollowingError）
+    4. 如果 deleted_at is None → 说明未软删，不允许硬删，抛 HardDeleteFollowRequiresSoftDeleteError
+    5. 如果 deleted_at 不为 None → 允许硬删，调用 follow_repo.hard_delete_follow(...)
+       注意：不再修改统计 following / followers
+    """
+
+    # 1. 用户存在性校验（可选，但推荐）
+    follower = user_repo.admin_get_user_by_uid(data.user_id)
+    if not follower:
+        raise UserNotFound(message=f"user {data.user_id} not found")
+
+    followed = user_repo.admin_get_user_by_uid(data.followed_user_id)
+    if not followed:
+        raise UserNotFound(message=f"user {data.followed_user_id} not found")
+
+    # 2. 管理员视角查关注记录
+    follow = follow_repo.admin_get_follow(
+        user_id=data.user_id,
+        followed_user_id=data.followed_user_id,
+    )
+
+    if not follow:
+        # 这里你也可以选择抛 NotFollowingError
+        logger.warning(
+            f"[ADMIN] hard delete follow failed: "
+            f"{data.user_id} -> {data.followed_user_id} not found"
+        )
+        return False
+
+    # 3. 必须已经软删除才允许硬删
+    if follow.deleted_at is None:
+        # 说明当前还是“正常关注”状态，业务不允许直接硬删
+        raise HardDeleteFollowRequiresSoftDeleteError(
+            user_id=data.user_id,
+            followed_user_id=data.followed_user_id,
+        )
+
+    # 4. deleted_at 不为 None → 可以执行硬删除（不改统计）
+    ok = follow_repo.hard_delete_follow(
+        user_id=data.user_id,
+        followed_user_id=data.followed_user_id,
+    )
+
+    if ok:
+        logger.info(
+            f"[ADMIN] hard deleted follow relation: "
+            f"{data.user_id} -> {data.followed_user_id}"
+        )
+    else:
+        logger.warning(
+            f"[ADMIN] hard delete follow failed at repo: "
+            f"{data.user_id} -> {data.followed_user_id}"
+        )
+
+    return ok
 
 def list_following(follow_repo: IFollowRepository, current_uid: str, page: int = 0, page_size: int = 10, to_dict: bool = True) -> Dict | BatchFollowsOut:
     """
