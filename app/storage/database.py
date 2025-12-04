@@ -9,6 +9,7 @@ from app.storage.post_content.SQLAlchemyPostConRepository import SQLAlchemyPostC
 from app.storage.post_stats.SQLAlchemyPostStatsRepository import SQLAlchemyPostStatsRepository
 from app.storage.comment.SQLAlchemyCommentRepository import SQLAlchemyCommentRepository
 from app.storage.comment_content.SQLAlchemyComConRepository import SQLAlchemyCommentContentRepository
+from app.storage.like.SQLAlchemyLikeRepository import SQLAlchemyLikeRepository
 
 from fastapi import Depends
 
@@ -51,3 +52,5 @@ def get_comment_repo(db: Session = Depends(get_db)) -> SQLAlchemyCommentReposito
     return SQLAlchemyCommentRepository(db)
 def get_comcon_repo(db: Session = Depends(get_db)) -> SQLAlchemyCommentContentRepository:
     return SQLAlchemyCommentContentRepository(db)
+def get_like_repo(db: Session = Depends(get_db)) -> SQLAlchemyLikeRepository:
+    return SQLAlchemyLikeRepository(db)
