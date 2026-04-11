@@ -1,6 +1,6 @@
 # app/storage/comment_content/SQLAlchemyCommentContentRepository.py
 
-from typing import Optional, List
+from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.models.comment_content import CommentContent

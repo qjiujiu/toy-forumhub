@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 from app.schemas.post import (
     PostCreate,
@@ -40,7 +40,7 @@ def create_post(
     content_repo: IPostContentRepository,
     stats_repo: IPostStatsRepository,
     data: PostCreate,
-    to_dict: bool = True,) -> Dict | PostOut:
+    to_dict: bool = True,) -> Union[Dict, PostOut]:
     """
     创建帖子（业务接口）：
     1. 查看 用户ID 是否存在
@@ -88,7 +88,7 @@ def create_post(
 
 #------------------------------- 用户：查阅，更新，软删 ------------------------------------
 
-def get_post_by_pid(post_repo: IPostRepository, pid: str, to_dict: bool = True,) -> Dict | Optional[PostOut]:
+def get_post_by_pid(post_repo: IPostRepository, pid: str, to_dict: bool = True,) -> Union[Dict, Optional[PostOut]]:
     """
     获取单个帖子详情（含内容 + 统计）
     """
@@ -97,7 +97,7 @@ def get_post_by_pid(post_repo: IPostRepository, pid: str, to_dict: bool = True,)
         return None
     return post.model_dump() if to_dict else post
 
-def get_batch_posts(post_repo: IPostRepository, page: int = 0, page_size: int = 10, to_dict: bool = True,) -> Dict | BatchPostsOut:
+def get_batch_posts(post_repo: IPostRepository, page: int = 0, page_size: int = 10, to_dict: bool = True,) -> Union[Dict, BatchPostsOut]:
     """
     分页获取帖子列表：
     - 按你的仓库实现默认为 _id 倒序
@@ -106,7 +106,7 @@ def get_batch_posts(post_repo: IPostRepository, page: int = 0, page_size: int = 
     result = post_repo.get_batch_posts(page=page, page_size=page_size)
     return result.model_dump() if to_dict else result
 
-def get_posts_by_author(user_repo: IUserRepository, post_repo: IPostRepository, data: PostGet, page: int = 0, page_size: int = 10, to_dict: bool = True,) -> Dict | BatchPostsOut:
+def get_posts_by_author(user_repo: IUserRepository, post_repo: IPostRepository, data: PostGet, page: int = 0, page_size: int = 10, to_dict: bool = True,) -> Union[Dict, BatchPostsOut]:
     """
     根据作者 ID 分页获取该作者的所有帖子
     """
@@ -148,7 +148,7 @@ def soft_delete_post(post_repo: IPostRepository, pid: str,) -> bool:
 
 #--------------------------------- 审核员：查阅，审核 --------------------------------------
 
-def get_post_review(post_repo: IPostRepository, pid: str, to_dict: bool = True,) -> Dict | PostReviewOut:
+def get_post_review(post_repo: IPostRepository, pid: str, to_dict: bool = True,) -> Union[Dict, PostReviewOut]:
     """
     通过帖子 ID 查询帖子审核信息（附带内容）：
     - 用于审核详情页
@@ -160,7 +160,7 @@ def get_post_review(post_repo: IPostRepository, pid: str, to_dict: bool = True,)
     return review.model_dump() if to_dict else review
 
 
-def get_post_reviews_by_author(post_repo: IPostRepository, author_id: str, page: int = 0, page_size: int = 10, to_dict: bool = True,) -> Dict | BatchPostsReviewOut:
+def get_post_reviews_by_author(post_repo: IPostRepository, author_id: str, page: int = 0, page_size: int = 10, to_dict: bool = True,) -> Union[Dict, BatchPostsReviewOut]:
     """
     审核员：通过作者 ID 查看该作者的所有帖子审核信息（包含所有审核状态）
     - 过滤 deleted_at（数据层 _review_query 已经做了）
@@ -178,7 +178,7 @@ def get_post_reviews_by_author(post_repo: IPostRepository, author_id: str, page:
     return result.model_dump() if to_dict else result
 
 
-def list_pending_review_posts(post_repo: IPostRepository, page: int = 0, page_size: int = 10, to_dict: bool = True,) -> Dict | BatchPostsReviewOut:
+def list_pending_review_posts(post_repo: IPostRepository, page: int = 0, page_size: int = 10, to_dict: bool = True,) -> Union[Dict, BatchPostsReviewOut]:
     """
     审核员 / 管理员：查看所有待审帖子列表
     - 只查 review_status = PENDING
@@ -192,7 +192,7 @@ def list_pending_review_posts(post_repo: IPostRepository, page: int = 0, page_si
     return result.model_dump() if to_dict else result
 
 
-def review_post(post_repo: IPostRepository, pid: str, data: PostReviewUpdate, to_dict: bool = True,) -> Dict | PostReviewOut:
+def review_post(post_repo: IPostRepository, pid: str, data: PostReviewUpdate, to_dict: bool = True,) -> Union[Dict, PostReviewOut]:
     """
     审核帖子：
     1. 读取当前帖子审核状态
@@ -236,7 +236,7 @@ def review_post(post_repo: IPostRepository, pid: str, data: PostReviewUpdate, to
 
 #---------------------------------- 管理员：查阅，硬删除，恢复帖子 -------------------------------------
 
-def admin_get_post_by_pid(post_repo: IPostRepository, pid: str, to_dict: bool = True,) -> Dict | PostAdminOut:
+def admin_get_post_by_pid(post_repo: IPostRepository, pid: str, to_dict: bool = True,) -> Union[Dict, PostAdminOut]:
     """
     管理员根据帖子 ID 获取帖子详情：
     - 不过滤 deleted_at（软删除也能看）
@@ -250,7 +250,7 @@ def admin_get_post_by_pid(post_repo: IPostRepository, pid: str, to_dict: bool = 
     return post.model_dump() if to_dict else post
 
 
-def admin_list_all_posts(post_repo: IPostRepository, page: int = 0, page_size: int = 10, to_dict: bool = True,) -> Dict | BatchPostsAdminOut:
+def admin_list_all_posts(post_repo: IPostRepository, page: int = 0, page_size: int = 10, to_dict: bool = True,) -> Union[Dict, BatchPostsAdminOut]:
     """
     管理员查看所有帖子（含软删除）：
     - 不过滤 deleted_at
@@ -266,7 +266,7 @@ def admin_list_all_posts(post_repo: IPostRepository, page: int = 0, page_size: i
     return result.model_dump() if to_dict else result
 
 
-def admin_list_deleted_posts(post_repo: IPostRepository, page: int = 0, page_size: int = 10, to_dict: bool = True,) -> Dict | BatchPostsAdminOut:
+def admin_list_deleted_posts(post_repo: IPostRepository, page: int = 0, page_size: int = 10, to_dict: bool = True,) -> Union[Dict, BatchPostsAdminOut]:
     """
     管理员查看所有软删除帖子：
     - 只查 deleted_at IS NOT NULL
@@ -281,7 +281,7 @@ def admin_list_deleted_posts(post_repo: IPostRepository, page: int = 0, page_siz
     return result.model_dump() if to_dict else result
 
 
-def admin_list_posts_by_author(post_repo: IPostRepository, author_id: str, page: int = 0, page_size: int = 10, to_dict: bool = True,) -> Dict | BatchPostsAdminOut:
+def admin_list_posts_by_author(post_repo: IPostRepository, author_id: str, page: int = 0, page_size: int = 10, to_dict: bool = True,) -> Union[Dict, BatchPostsAdminOut]:
     """
     管理员根据作者 ID 查看该作者的所有帖子（含软删）：
     - 不过滤 deleted_at

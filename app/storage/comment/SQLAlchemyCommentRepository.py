@@ -1,6 +1,6 @@
 # app/storage/comment/SQLAlchemyCommentRepository.py
 
-from typing import Optional, List
+from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 
 from sqlalchemy.orm import Session

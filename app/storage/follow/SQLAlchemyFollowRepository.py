@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import List, Optional, Set
 from datetime import datetime, timezone, timedelta
 
 from sqlalchemy.orm import Session
@@ -287,7 +287,7 @@ class SQLAlchemyFollowRepository(IFollowRepository):
             items=items,
         )
 
-    def _get_mutual_ids_following(self, user_id: str, other_user_ids: List[str]) -> set[str]:
+    def _get_mutual_ids_following(self, user_id: str, other_user_ids: List[str]) -> Set[str]:
         """
         list_following 用：
         - 判断 other_user_ids（我关注的人）是否也关注我
@@ -304,7 +304,7 @@ class SQLAlchemyFollowRepository(IFollowRepository):
         )
         return {f.user_id for f in rows}
 
-    def _get_mutual_ids_followers(self, user_id: str, other_user_ids: List[str]) -> set[str]:
+    def _get_mutual_ids_followers(self, user_id: str, other_user_ids: List[str]) -> Set[str]:
         """
         list_followers 用：
         - 判断我是否关注 other_user_ids（我的粉丝）

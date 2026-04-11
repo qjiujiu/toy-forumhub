@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional, Union
 
 from app.schemas.user import (
     UserCreate,
@@ -25,7 +25,7 @@ from app.core.exceptions import UserNotFound, PasswordMismatchError
 from app.core.security import hash_password, verify_password
 
 
-def create_user(user_repo: IUserRepository, stats_repo: IUserStatsRepository, user_data: UserCreate, to_dict: bool = True) -> Dict | UserOut:
+def create_user(user_repo: IUserRepository, stats_repo: IUserStatsRepository, user_data: UserCreate, to_dict: bool = True) -> Union[Dict, UserOut]:
     """
     创建用户：
     1. 对明文密码做 Argon2 哈希
@@ -48,7 +48,7 @@ def create_user(user_repo: IUserRepository, stats_repo: IUserStatsRepository, us
 
     return new_user.model_dump() if to_dict else new_user
 
-def get_batch_users(user_repo: IUserRepository, page: int = 0, page_size: int = 10, to_dict: bool = True) -> Dict | BatchUsersOut:
+def get_batch_users(user_repo: IUserRepository, page: int = 0, page_size: int = 10, to_dict: bool = True) -> Union[Dict, BatchUsersOut]:
     """
     分页获取用户列表（不含统计信息）
     """
@@ -56,7 +56,7 @@ def get_batch_users(user_repo: IUserRepository, page: int = 0, page_size: int = 
     return result.model_dump() if to_dict else result
 
 
-def get_users_by_username(user_repo: IUserRepository, username: str, page: int = 0, page_size: int = 10, to_dict: bool = True) -> Dict | BatchUsersOut:
+def get_users_by_username(user_repo: IUserRepository, username: str, page: int = 0, page_size: int = 10, to_dict: bool = True) -> Union[Dict, BatchUsersOut]:
     """
     根据用户名分页查询同名用户
     """
@@ -68,7 +68,7 @@ def get_users_by_username(user_repo: IUserRepository, username: str, page: int =
     return result.model_dump() if to_dict else result
 
 
-def get_user_by_uid(user_repo: IUserRepository, uid: str, to_dict: bool = True) -> Optional[Dict | UserOut]:
+def get_user_by_uid(user_repo: IUserRepository, uid: str, to_dict: bool = True) -> Optional[Union[Dict, UserOut]]:
     """
     根据 uid 获取用户基础信息
     """
@@ -78,7 +78,7 @@ def get_user_by_uid(user_repo: IUserRepository, uid: str, to_dict: bool = True) 
     return UserOut.model_validate(user).model_dump() if to_dict else user
 
 
-def get_user_profile(stats_repo: IUserStatsRepository, uid: str, to_dict: bool = True) -> Optional[Dict | UserStatsWithUserOut]:
+def get_user_profile(stats_repo: IUserStatsRepository, uid: str, to_dict: bool = True) -> Optional[Union[Dict, UserStatsWithUserOut]]:
     """
     用户详情：User 信息 + 关注数/粉丝数
     这里直接用 UserStatsWithUserOut（由 stats_repo join user 拼出）
@@ -89,7 +89,7 @@ def get_user_profile(stats_repo: IUserStatsRepository, uid: str, to_dict: bool =
     return profile.model_dump() if to_dict else profile
 
 
-def update_user(user_repo: IUserRepository, uid: str, data: UserUpdate, to_dict: bool = True) -> Optional[Dict | UserOut]:
+def update_user(user_repo: IUserRepository, uid: str, data: UserUpdate, to_dict: bool = True) -> Optional[Union[Dict, UserOut]]:
     """
     普通用户更新自己的信息
     """
@@ -99,7 +99,7 @@ def update_user(user_repo: IUserRepository, uid: str, data: UserUpdate, to_dict:
     return updated.model_dump() if to_dict else updated
 
 
-def admin_update_user(user_repo: IUserRepository, uid: str, data: AdminUserUpdate, to_dict: bool = True) -> Optional[Dict | UserOut]:
+def admin_update_user(user_repo: IUserRepository, uid: str, data: AdminUserUpdate, to_dict: bool = True) -> Optional[Union[Dict, UserOut]]:
     """
     管理员更新用户信息（包含角色/状态）
     """
@@ -175,7 +175,7 @@ def admin_get_users(
     page: int = 0,
     page_size: int = 10,
     to_dict: bool = True,
-) -> Dict | BatchUsersAllOut:
+) -> Union[Dict, BatchUsersAllOut]:
     """
     管理员：分页查看所有用户（包含软删）
     """
@@ -194,7 +194,7 @@ def admin_get_user_by_uid(
     user_repo: IUserRepository,
     uid: str,
     to_dict: bool = True,
-) -> Dict | UserAllOut:
+) -> Union[Dict, UserAllOut]:
     """
     管理员根据 uid 获取用户详情：
     - 不过滤软删除（数据层已实现 admin_get_user_by_uid）
@@ -213,7 +213,7 @@ def admin_get_users_by_username(
     page: int = 0,
     page_size: int = 10,
     to_dict: bool = True,
-) -> Dict | BatchUsersAllOut:
+) -> Union[Dict, BatchUsersAllOut]:
     """
     管理员根据用户名分页查询用户：
     - 不过滤软删除
@@ -237,7 +237,7 @@ def admin_list_deleted_users(
     page: int = 0,
     page_size: int = 10,
     to_dict: bool = True,
-) -> Dict | BatchUsersAllOut:
+) -> Union[Dict, BatchUsersAllOut]:
     """
     管理员查看所有软删除用户：
     - 只查 deleted_at IS NOT NULL
@@ -260,7 +260,7 @@ def admin_list_abnormal_status_users(
     page: int = 0,
     page_size: int = 10,
     to_dict: bool = True,
-) -> Dict | BatchUsersAllOut:
+) -> Union[Dict, BatchUsersAllOut]:
     """
     管理员查看异常状态用户：
     - “异常状态”的定义由数据层决定（例如 status = 1/2）

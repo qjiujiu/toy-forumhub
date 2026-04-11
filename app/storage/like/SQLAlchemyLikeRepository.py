@@ -1,6 +1,6 @@
 # app/storage/like/SQLAlchemyLikeRepository.py
 
-from typing import Optional, List
+from typing import List, Optional
 
 from sqlalchemy.orm import Session, joinedload
 
