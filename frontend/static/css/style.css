@@ -1,0 +1,108 @@
+:root {
+  --app-bg: var(--color-bg-2);
+  --page-bg: var(--color-bg-1);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--page-bg);
+  font-family: var(--font-family-standard);
+  color: var(--color-text-1);
+}
+
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  background-color: var(--app-bg);
+  border-bottom: 1px solid var(--color-border-2);
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.app-header-inner {
+  max-width: 1000px;
+  margin: 0 auto;
+  height: 60px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo .app-title {
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--color-text-1);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.app-content {
+  flex: 1;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 24px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--color-border-1);
+  padding-bottom: 16px;
+}
+
+.content-header h2 {
+  margin: 0;
+}
+
+.post-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.app-footer {
+  text-align: center;
+  padding: 24px;
+  background-color: var(--app-bg);
+  border-top: 1px solid var(--color-border-2);
+  margin-top: auto;
+}
+
+.post-card-meta {
+  margin-bottom: 8px;
+}
+
+.post-actions {
+  display: flex;
+  gap: 16px;
+  color: var(--color-text-3);
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: color 0.1s;
+}
+
+.action-item:hover {
+  color: var(--color-primary-6);
+}
