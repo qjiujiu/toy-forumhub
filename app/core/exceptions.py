@@ -86,7 +86,7 @@ class PasswordMismatchError(Exception):
 
 class PostNotFound(Exception):
     """找不到帖子"""
-    def __init__(self, pid: str | None = None, message: str | None = None):
+    def __init__(self, pid: Optional[str] = None, message: Optional[str] = None):
         if message:
             super().__init__(message)
         else:
@@ -105,7 +105,7 @@ class ForbiddenAction(Exception):
 
 class CommentNotFound(Exception):
     """找不到帖子"""
-    def __init__(self, cid: str | None = None, message: str | None = None):
+    def __init__(self, cid: Optional[str] = None, message: Optional[str] = None):
         if message:
             super().__init__(message)
         else:

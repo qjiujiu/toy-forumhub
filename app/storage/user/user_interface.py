@@ -1,4 +1,4 @@
-from typing import Optional, List, Protocol
+from typing import List, Optional, Protocol
 from datetime import datetime
 
 from app.schemas.user import (  

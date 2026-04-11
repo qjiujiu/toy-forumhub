@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Union
 
 from app.schemas.like import (
     LikeCreate,
@@ -34,7 +34,7 @@ def like_target(
     like_repo: ILikeRepository,
     data: LikeCreate,
     to_dict: bool = True,
-) -> Dict | LikeOut:
+) -> Union[Dict, LikeOut]:
     """
     点赞目标（帖子 / 评论）：
 
@@ -87,7 +87,7 @@ def cancel_like(
     like_repo: ILikeRepository,
     data: LikeCancel,
     to_dict: bool = True,
-) -> Dict | LikeOut:
+) -> Union[Dict, LikeOut]:
     """
     取消点赞（软删除）：
 
@@ -127,7 +127,7 @@ def list_likes_by_target(
     page: int = 0,
     page_size: int = 10,
     to_dict: bool = True,
-) -> Dict | BatchLikesOut:
+) -> Union[Dict, BatchLikesOut]:
     """
     查询某个目标（帖子 / 评论）的有效点赞列表（分页）：
     - 只返回未软删除的点赞记录
@@ -148,7 +148,7 @@ def list_likes_by_user(
     page: int = 0,
     page_size: int = 10,
     to_dict: bool = True,
-) -> Dict | BatchLikesOut:
+) -> Union[Dict, BatchLikesOut]:
     """
     查询某个用户的有效点赞记录（分页）：
     - 包含该用户对帖子和评论的所有点赞
@@ -170,7 +170,7 @@ def admin_list_likes_by_target(
     page: int = 0,
     page_size: int = 10,
     to_dict: bool = True,
-) -> Dict | BatchLikesAdminOut:
+) -> Union[Dict, BatchLikesAdminOut]:
     """
     管理员：查询某个目标（帖子 / 评论）的所有点赞记录（含软删）
     """
@@ -190,7 +190,7 @@ def admin_list_likes_by_user(
     page: int = 0,
     page_size: int = 10,
     to_dict: bool = True,
-) -> Dict | BatchLikesAdminOut:
+) -> Union[Dict, BatchLikesAdminOut]:
     """
     管理员：查询某个用户的所有点赞记录（含软删）
     """

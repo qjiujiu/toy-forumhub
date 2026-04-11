@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import List, Optional
 from pydantic import BaseModel, EmailStr, AnyUrl, ConfigDict
 from datetime import datetime
 from app.models.user import UserRole, UserStatus

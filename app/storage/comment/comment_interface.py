@@ -1,6 +1,6 @@
 # app/storage/comment/comment_interface.py
 
-from typing import Optional, List, Protocol
+from typing import List, Optional, Protocol
 
 from app.schemas.comment import (
     CommentOnlyCreate,
@@ -50,7 +50,7 @@ class ICommentRepository(Protocol):
 
 
     # ---------- 按root_id查询列表 ----------
-    def list_comments_by_root_for_user(self, root_id: str, page: int | None = None, page_size: int | None = None) -> BatchCommentsOut:
+    def list_comments_by_root_for_user(self, root_id: str, page: Optional[int] = None, page_size: Optional[int] = None) -> BatchCommentsOut:
         """
         用户视角：根据 root_id 获取整组对话（楼）里的所有评论
         - 过滤软删除 / 折叠 / REJECTED

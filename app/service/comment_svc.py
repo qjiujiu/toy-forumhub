@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Set, Union
 
 from app.schemas.comment import (
     CommentCreate,
@@ -40,7 +40,7 @@ def create_comment(
     stats_repo: IPostStatsRepository,          
     data: CommentCreate,
     to_dict: bool = True,
-) -> Dict | CommentOut:
+) -> Union[Dict, CommentOut]:
     """
     创建评论（业务接口）：
     1. 校验用户是否存在
@@ -108,7 +108,7 @@ def get_comment_for_user(
     comment_repo: ICommentRepository,
     cid: str,
     to_dict: bool = True,
-) -> Dict | CommentOut:
+) -> Union[Dict, CommentOut]:
     """
     普通用户 / 前台：查看单条评论
     - 使用用户视角的过滤规则（不包含软删除 / 折叠 / REJECTED）
@@ -123,7 +123,7 @@ def get_comment_thread_for_user(
     comment_repo: ICommentRepository,
     cid: str,
     to_dict: bool = True,
-) -> Dict | BatchCommentsOut:
+) -> Union[Dict, BatchCommentsOut]:
     """
     查看某条评论所在整组对话（楼中楼完整线程）——用户视角：
 
@@ -153,7 +153,7 @@ def get_comment_for_admin(
     comment_repo: ICommentRepository,
     cid: str,
     to_dict: bool = True,
-) -> Dict | CommentAdminOut:
+) -> Union[Dict, CommentAdminOut]:
     """
     管理员：查看单条评论
     - 可见软删除 / 折叠 / REJECTED 等所有状态
@@ -172,7 +172,7 @@ def get_comment_subtree_for_user(
     comment_repo: ICommentRepository,
     cid: str,
     to_dict: bool = True,
-) -> Dict | BatchCommentsOut:
+) -> Union[Dict, BatchCommentsOut]:
     """
     查看从某条评论开始的子树对话（只看这一支）——用户视角：
 
@@ -190,15 +190,15 @@ def get_comment_subtree_for_user(
 
     # 2. 拿到整组对话（同一 root_id 下的所有可见评论）
     thread = comment_repo.list_comments_by_root_for_user(root_id=root_id)
-    all_comments: list[CommentOut] = thread.items
+    all_comments: List[CommentOut] = thread.items
 
     if not all_comments:
         # 理论上不太可能（至少 current 在里面），防御性兜底
         raise CommentNotFound(message=f"no comments found under root_id={root_id}")
 
     # 3. 构建：cid -> CommentOut / parent_id -> [CommentOut] 的索引
-    id_to_comment: dict[str, CommentOut] = {c.cid: c for c in all_comments}
-    parent_to_children: dict[Optional[str], list[CommentOut]] = defaultdict(list)
+    id_to_comment: Dict[str, CommentOut] = {c.cid: c for c in all_comments}
+    parent_to_children: Dict[Optional[str], List[CommentOut]] = defaultdict(list)
     for c in all_comments:
         parent_to_children[c.parent_id].append(c)
 
@@ -207,9 +207,9 @@ def get_comment_subtree_for_user(
         raise CommentNotFound(message=f"comment {cid} not visible for user (maybe deleted or hidden)")
 
     # 4. 从当前 cid 开始 DFS/BFS，收集整棵子树
-    visited: set[str] = set()
-    stack: list[str] = [cid]
-    subtree_list: list[CommentOut] = []
+    visited: Set[str] = set()
+    stack: List[str] = [cid]
+    subtree_list: List[CommentOut] = []
 
     while stack:
         current_cid = stack.pop()
@@ -255,7 +255,7 @@ def list_comments_by_post_for_user(
     page: int = 0,
     page_size: int = 10,
     to_dict: bool = True,
-) -> Dict | BatchCommentsOut:
+) -> Union[Dict, BatchCommentsOut]:
     """
     普通用户 / 前台：查看某帖子的评论列表
     - 不包含软删除 / 折叠 / REJECTED 评论
@@ -274,7 +274,7 @@ def list_comments_by_post_for_reviewer(
     page: int = 0,
     page_size: int = 10,
     to_dict: bool = True,
-) -> Dict | BatchCommentsAdminOut:
+) -> Union[Dict, BatchCommentsAdminOut]:
     """
     审核员：查看某帖子的评论列表
     - 看得到所有审核状态（PENDING / APPROVED / REJECTED）
@@ -294,7 +294,7 @@ def list_comments_by_post_for_admin(
     page: int = 0,
     page_size: int = 10,
     to_dict: bool = True,
-) -> Dict | BatchCommentsAdminOut:
+) -> Union[Dict, BatchCommentsAdminOut]:
     """
     管理员：查看某帖子的评论列表
     - 含软删除、折叠、REJECTED 等所有状态
@@ -314,7 +314,7 @@ def review_comment(
     cid: str,
     data: ReviewUpdate,
     to_dict: bool = True,
-) -> Dict | CommentAdminOut:
+) -> Union[Dict, CommentAdminOut]:
     """
     审核评论：
     1. 读取当前评论审核状态
@@ -362,7 +362,7 @@ def update_comment_status(
     cid: str,
     data: StatusUpdate,
     to_dict: bool = True,
-) -> Dict | CommentAdminOut:
+) -> Union[Dict, CommentAdminOut]:
     """
     管理员更新评论显示状态（正常 / 折叠）：
     - 不涉及审核状态，只改 status

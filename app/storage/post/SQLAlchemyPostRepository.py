@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 
 from sqlalchemy.orm import Session
@@ -353,7 +353,7 @@ class SQLAlchemyPostRepository(IPostRepository):
 
         posts = (base_q.offset(page * page_size).limit(page_size).all())
 
-        items: list[PostAdminOut] = []
+        items: List[PostAdminOut] = []
         items = [PostAdminOut.model_validate(post) for post in posts]
 
         return BatchPostsAdminOut(total=total, count=len(items), items=items,)
@@ -369,7 +369,7 @@ class SQLAlchemyPostRepository(IPostRepository):
 
         posts = (base_q.offset(page * page_size).limit(page_size).all())
 
-        items: list[PostAdminOut] = []
+        items: List[PostAdminOut] = []
         items = [PostAdminOut.model_validate(post) for post in posts]
 
         return BatchPostsAdminOut(total=total, count=len(items), items=items,)
@@ -385,7 +385,7 @@ class SQLAlchemyPostRepository(IPostRepository):
 
         posts = (base_q.offset(page * page_size).limit(page_size).all())
 
-        items: list[PostAdminOut] = []
+        items: List[PostAdminOut] = []
         items = [PostAdminOut.model_validate(post) for post in posts]
 
         return BatchPostsAdminOut(total=total, count=len(items), items=items,)

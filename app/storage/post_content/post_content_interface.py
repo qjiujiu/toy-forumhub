@@ -1,6 +1,6 @@
 # app/storage/post_content/post_content_interface.py
 
-from typing import Optional, List, Protocol
+from typing import List, Optional, Protocol
 
 from app.schemas.post_content import (
     PostContentCreate,

@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional, Union
 
 from app.schemas.follow import (
     FollowCreate,
@@ -20,7 +20,7 @@ from app.core.exceptions import (
 )
 logger.is_debug(True)
 
-def follow_user(follow_repo: IFollowRepository, stats_repo: IUserStatsRepository, user_repo: IUserRepository, follow: FollowCreate, to_dict: bool = True,) -> Dict | FollowOut:
+def follow_user(follow_repo: IFollowRepository, stats_repo: IUserStatsRepository, user_repo: IUserRepository, follow: FollowCreate, to_dict: bool = True,) -> Union[Dict, FollowOut]:
     """
     关注用户：
     1. 检查关注用户是否存在
@@ -149,7 +149,7 @@ def hard_delete_follow(
 
     return ok
 
-def list_following(follow_repo: IFollowRepository, current_uid: str, page: int = 0, page_size: int = 10, to_dict: bool = True) -> Dict | BatchFollowsOut:
+def list_following(follow_repo: IFollowRepository, current_uid: str, page: int = 0, page_size: int = 10, to_dict: bool = True) -> Union[Dict, BatchFollowsOut]:
     """
     我关注的人列表
     - 返回 FollowUserOut 列表（对方 UserOut + is_mutual）
@@ -162,7 +162,7 @@ def list_following(follow_repo: IFollowRepository, current_uid: str, page: int =
     return result.model_dump() if to_dict else result
 
 
-def list_followers(follow_repo: IFollowRepository, current_uid: str, page: int = 0, page_size: int = 10, to_dict: bool = True) -> Dict | BatchFollowsOut:
+def list_followers(follow_repo: IFollowRepository, current_uid: str, page: int = 0, page_size: int = 10, to_dict: bool = True) -> Union[Dict, BatchFollowsOut]:
     """
     我的粉丝列表
     - 返回 FollowUserOut 列表（对方 UserOut + is_mutual）

@@ -1,4 +1,4 @@
-from typing import Optional, List, Protocol
+from typing import List, Optional, Protocol
 
 from app.schemas.follow import (
     FollowCreate,

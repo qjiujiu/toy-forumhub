@@ -1,6 +1,6 @@
 # app/storage/post_content/SQLAlchemyPostContentRepository.py
 
-from typing import Optional, List
+from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.models.post_content import PostContent

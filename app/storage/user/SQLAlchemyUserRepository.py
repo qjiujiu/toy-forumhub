@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from app.models.user import User, UserRole, UserStatus
@@ -268,7 +268,7 @@ class SQLAlchemyUserRepository(IUserRepository):
 
         users = (base_q.offset(page * page_size).limit(page_size).all())
 
-        items: list[UserAllOut] = []
+        items: List[UserAllOut] = []
         items = [UserAllOut.model_validate(user) for user in users]
 
         return BatchUsersAllOut(total=total, count=len(items), users=items,)
@@ -284,7 +284,7 @@ class SQLAlchemyUserRepository(IUserRepository):
 
         users = (base_q.offset(page * page_size).limit(page_size).all())
 
-        items: list[UserAllOut] = []
+        items: List[UserAllOut] = []
         items = [UserAllOut.model_validate(user) for user in users]
 
         return BatchUsersAllOut(total=total, count=len(items), users=items,)
