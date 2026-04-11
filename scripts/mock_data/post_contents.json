@@ -1,0 +1,14 @@
+[
+  {
+    "pcid": "pc_test_1",
+    "post_id": "p_test_1",
+    "title": "第一篇测试帖子",
+    "content": "大家好，这是我的第一篇测试帖子，很高兴认识大家！"
+  },
+  {
+    "pcid": "pc_test_2",
+    "post_id": "p_test_2",
+    "title": "管理员发布公告",
+    "content": "欢迎大家来到 Toy Forumhub 论坛系统，请大家遵守论坛规范。"
+  }
+]

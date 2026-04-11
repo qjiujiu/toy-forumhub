@@ -1,0 +1,24 @@
+[
+  {
+    "uid": "u_test_1",
+    "username": "zhangsan",
+    "role": 0,
+    "status": 0,
+    "phone": "13800138001",
+    "password": "hashed_password_abc",
+    "avatar_url": "http://example.com/avatar/zhangsan.jpg",
+    "email": "zhangsan@example.com",
+    "bio": "我是普通用户张三"
+  },
+  {
+    "uid": "u_test_2",
+    "username": "lisi_admin",
+    "role": 2,
+    "status": 0,
+    "phone": "13800138002",
+    "password": "hashed_password_def",
+    "avatar_url": "http://example.com/avatar/lisi.jpg",
+    "email": "lisi@example.com",
+    "bio": "我是管理员李四"
+  }
+]

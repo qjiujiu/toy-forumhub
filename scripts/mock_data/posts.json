@@ -1,0 +1,16 @@
+[
+  {
+    "pid": "p_test_1",
+    "author_id": "u_test_1",
+    "visibility": 0,
+    "publish_status": 1,
+    "review_status": 1
+  },
+  {
+    "pid": "p_test_2",
+    "author_id": "u_test_2",
+    "visibility": 0,
+    "publish_status": 1,
+    "review_status": 1
+  }
+]
