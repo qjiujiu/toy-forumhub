@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 
 -- 2. 创建用户统计表
+-- 创建表时直接内嵌索引
 CREATE TABLE IF NOT EXISTS user_stats (
     _id INT AUTO_INCREMENT PRIMARY KEY,          -- 系统主键（自增）
     user_id VARCHAR(36) NOT NULL,               -- 用户 ID (FK -> users.uid)
@@ -31,10 +32,10 @@ CREATE TABLE IF NOT EXISTS user_stats (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  -- 更新时间
     
     CONSTRAINT fk_user_stats_user FOREIGN KEY (user_id) REFERENCES users(uid),  -- 外键：关联用户表
-    UNIQUE (user_id)   -- 保证每个用户只有一条记录
+    UNIQUE (user_id),   -- 保证每个用户只有一条记录
+    INDEX idx_user_stats_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE INDEX idx_user_stats_user_id ON user_stats (user_id);
 
 
 -- 3. 创建关注表
@@ -47,11 +48,10 @@ CREATE TABLE IF NOT EXISTS follows (
 
     CONSTRAINT fk_follow_user FOREIGN KEY (user_id) REFERENCES users(uid),            -- 外键：关注者
     CONSTRAINT fk_followed_user FOREIGN KEY (followed_user_id) REFERENCES users(uid), -- 外键：被关注者
-    CONSTRAINT uq_user_follow UNIQUE (user_id, followed_user_id)    -- 联合唯一约束：防止用户重复关注
+    CONSTRAINT uq_user_follow UNIQUE (user_id, followed_user_id),    -- 联合唯一约束：防止用户重复关注
+    INDEX idx_follow_user (user_id),
+    INDEX idx_followed_user (followed_user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE INDEX idx_follow_user ON follows (user_id);
-CREATE INDEX idx_followed_user ON follows (followed_user_id);
 
 
 -- 4. 创建帖子表
@@ -65,12 +65,11 @@ CREATE TABLE IF NOT EXISTS posts (
     reviewed_at TIMESTAMP NULL,                   -- 审核时间
     deleted_at TIMESTAMP NULL,                    -- 软删除时间戳
 
-    FOREIGN KEY (author_id) REFERENCES users(uid)   -- 外键关联到用户表
+    FOREIGN KEY (author_id) REFERENCES users(uid),   -- 外键关联到用户表
+    INDEX idx_posts_author_id (author_id),
+    INDEX idx_posts_visibility_review_status (visibility, review_status),
+    INDEX idx_posts_author_visibility (author_id, visibility)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE INDEX idx_posts_author_id ON posts (author_id);
-CREATE INDEX idx_posts_visibility_review_status ON posts (visibility, review_status);
-CREATE INDEX idx_posts_author_visibility ON posts (author_id, visibility);
 
 
 -- 5. 创建帖子内容表
@@ -114,12 +113,11 @@ CREATE TABLE IF NOT EXISTS comments (
     deleted_at TIMESTAMP NULL,                                                            -- 软删除
 
     FOREIGN KEY (post_id) REFERENCES posts(pid),      -- 外键关联到帖子表
-    FOREIGN KEY (author_id) REFERENCES users(uid)     -- 外键关联到用户表
+    FOREIGN KEY (author_id) REFERENCES users(uid),     -- 外键关联到用户表
+    INDEX idx_comments_author (author_id),
+    INDEX idx_comments_parent (parent_id),
+    INDEX idx_comments_root (root_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE INDEX idx_comments_author ON comments(author_id);
-CREATE INDEX idx_comments_parent ON comments(parent_id);
-CREATE INDEX idx_comments_root ON comments(root_id);
 
 
 -- 8. 创建评论内容表
@@ -146,9 +144,8 @@ CREATE TABLE IF NOT EXISTS likes (
     deleted_at TIMESTAMP NULL,                       -- 软删除时间戳
     
     CONSTRAINT uq_likes_user_target UNIQUE (user_id, target_type, target_id),
-    CONSTRAINT fk_likes_user FOREIGN KEY (user_id) REFERENCES users(uid)
+    CONSTRAINT fk_likes_user FOREIGN KEY (user_id) REFERENCES users(uid),
+    INDEX idx_likes_user_target_type (user_id, target_type),
+    INDEX idx_likes_target_type_id   (target_type, target_id),
+    INDEX idx_likes_created_at       (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE INDEX idx_likes_user_target_type ON likes (user_id, target_type);
-CREATE INDEX idx_likes_target_type_id   ON likes (target_type, target_id);
-CREATE INDEX idx_likes_created_at       ON likes (created_at);
