@@ -1,4 +1,42 @@
-## 论坛的管理系统
+## 迷你论坛系统
+
+### 项目目录结构
+
+```shell
+.
+├── Makefile                   # 常用命令管理，包括启动前后端、建库造数据、生成 swagger 等
+├── README.md                  # 项目主要说明文档
+├── app/                       # FastAPI 后端源码目录
+│   ├── core/                  # 核心配置、异常处理、安全校验、日志等
+│   ├── models/                # SQLAlchemy 数据模型定义
+│   ├── routers/               # API 路由控制器
+│   ├── schemas/               # Pydantic 验证模型 (DTO)
+│   ├── service/               # 业务逻辑层
+│   └── storage/               # 数据访问层 (Repository Pattern) 接口及实现
+├── docs/                      # 项目文档及静态资源目录
+│   ├── img/                   # 图片资源
+│   ├── swagger.json           # 自动生成的 OpenAPI 规范文件
+│   ├── 前端设计.md              # 前端技术选型与设计文档
+│   ├── 项目概述.md              # 项目总体介绍
+│   └── 数据表设计.md            # 数据库表结构说明
+├── frontend/                  # React 前端源码目录
+│   ├── index.html             # 前端入口 HTML
+│   ├── package.json           # npm 依赖与脚本
+│   ├── src/                   # 前端源码
+│   │   ├── App.tsx            # React 根组件、路由定义
+│   │   ├── api/               # 通过 openapi-typescript-codegen 自动生成的 SDK
+│   │   ├── components/        # 公共 UI 组件 (例如 PostCard, AppHeader)
+│   │   ├── main.tsx           # React 挂载点
+│   │   └── pages/             # 页面组件 (例如 Home)
+│   ├── static/                # 前端静态资源 (例如 css)
+│   ├── tsconfig.*.json        # TypeScript 配置文件
+│   └── vite.config.ts         # Vite 构建工具配置
+└── scripts/                   # 自动化运维脚本
+    ├── init_db.py             # 读取 SQL 初始化数据库的脚本
+    ├── init_db.sql            # 从 models 提取的 MySQL DDL 语句
+    ├── load_mock_data.py      # 将 json 数据导入数据库的脚本
+    └── mock_data/             # 用于测试的 Mock JSON 数据
+```
 
 ###  产品形态
 
@@ -11,7 +49,6 @@
 - 用户
   - 注册账号：用户输入必填信息即可注册账号
   - 注销账号：用户所有的删除都是软删除
-
 - 发帖
   - 发布帖子：用户必须登录之后才可以发帖，审核通过才算是成功发布
   - 查看帖子：用户可以查看自己发布的所有帖子（除非帖子已被软删除）。对于其他用户发布的帖子，只有在帖子通过审核且状态为“所有用户可见”时，用户才能查看该帖子。
@@ -85,5 +122,8 @@
 
 ### 更多文档
 
-- [前端架构与设计](docs/前端设计.md)
 - [项目概述与规划](docs/项目概述.md)
+- [前端架构与设计](docs/前端设计.md)
+- 
+
+

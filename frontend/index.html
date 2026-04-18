@@ -5,6 +5,28 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Toy Forumhub</title>
+    <script>
+      window.addEventListener('error', function(event) {
+        fetch('http://127.0.0.1:9999/log', {
+          method: 'POST',
+          body: JSON.stringify({type: 'error', message: event.message, filename: event.filename, lineno: event.lineno})
+        });
+      });
+      window.addEventListener('unhandledrejection', function(event) {
+        fetch('http://127.0.0.1:9999/log', {
+          method: 'POST',
+          body: JSON.stringify({type: 'unhandledrejection', reason: event.reason ? event.reason.toString() : 'unknown'})
+        });
+      });
+      const originalConsoleError = console.error;
+      console.error = function(...args) {
+        fetch('http://127.0.0.1:9999/log', {
+          method: 'POST',
+          body: JSON.stringify({type: 'console_error', args: args.map(a => a ? a.toString() : String(a))})
+        });
+        originalConsoleError.apply(console, args);
+      };
+    </script>
   </head>
   <body>
     <div id="root"></div>
