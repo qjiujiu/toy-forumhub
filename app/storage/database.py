@@ -28,6 +28,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
+
 def get_db():
     db = SessionLocal()
     try:
@@ -35,22 +36,39 @@ def get_db():
     finally:
         db.close()
 
+
 # 未来可以根据配置切换不同的实现
 def get_user_repo(db: Session = Depends(get_db)) -> SQLAlchemyUserRepository:
     return SQLAlchemyUserRepository(db)
+
+
 def get_follow_repo(db: Session = Depends(get_db)) -> SQLAlchemyFollowRepository:
     return SQLAlchemyFollowRepository(db)
+
+
 def get_usersta_repo(db: Session = Depends(get_db)) -> SQLAlchemyUserStatsRepository:
     return SQLAlchemyUserStatsRepository(db)
+
+
 def get_post_repo(db: Session = Depends(get_db)) -> SQLAlchemyPostRepository:
     return SQLAlchemyPostRepository(db)
+
+
 def get_postcon_repo(db: Session = Depends(get_db)) -> SQLAlchemyPostContentRepository:
     return SQLAlchemyPostContentRepository(db)
+
+
 def get_poststats_repo(db: Session = Depends(get_db)) -> SQLAlchemyPostStatsRepository:
     return SQLAlchemyPostStatsRepository(db)
+
+
 def get_comment_repo(db: Session = Depends(get_db)) -> SQLAlchemyCommentRepository:
     return SQLAlchemyCommentRepository(db)
+
+
 def get_comcon_repo(db: Session = Depends(get_db)) -> SQLAlchemyCommentContentRepository:
     return SQLAlchemyCommentContentRepository(db)
+
+
 def get_like_repo(db: Session = Depends(get_db)) -> SQLAlchemyLikeRepository:
     return SQLAlchemyLikeRepository(db)

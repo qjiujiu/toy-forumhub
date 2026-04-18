@@ -430,3 +430,18 @@ class SQLAlchemyPostRepository(IPostRepository):
             post.deleted_at = None
 
         return True
+
+    #----------------------------------- 热榜用 ----------------------------------------
+    def get_top_liked_posts(self, limit: int = 10, since_days: int = 7) -> list[dict]:
+        """
+        获取近期点赞数最高的帖子
+        TODO: Implement this method with joins
+        """
+        return []
+
+    def get_top_commented_posts(self, limit: int = 10, since_days: int = 7) -> list[dict]:
+        """
+        获取近期评论数最高的帖子
+        TODO: Implement this method with joins
+        """
+        return []
