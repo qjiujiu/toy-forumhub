@@ -3,6 +3,9 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from '@arco-design/web-react';
 import AppHeader from './components/AppHeader';
 import Home from './pages/Home';
+import Login from './pages/Auth/Login';
+import Register from './pages/Auth/Register';
+import PostDetail from './pages/Post/PostDetail';
 
 const { Footer } = Layout;
 
@@ -14,6 +17,9 @@ function App() {
         
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/post/:id" element={<PostDetail />} />
         </Routes>
         
         <Footer className="app-footer">

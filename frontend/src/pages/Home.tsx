@@ -8,7 +8,7 @@ import PostCard from '../components/PostCard';
 const { Content } = Layout;
 const { Title } = Typography;
 
-OpenAPI.BASE = 'http://127.0.0.1:8000';
+OpenAPI.BASE = '/api';
 
 const Home: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -20,12 +20,15 @@ const Home: React.FC = () => {
       const res = await PostsService.listPostsPostsGet(0, 10);
       const responseData: any = res;
       
-      // Handle wrapper from BizResponse or direct array
+      // Since response is already response.data from axios in request.ts,
+      // we check for .data (from our BizResponse) and .items inside it
       let fetchedPosts: PostOut[] = [];
       if (responseData?.data?.items && Array.isArray(responseData.data.items)) {
         fetchedPosts = responseData.data.items;
       } else if (responseData?.items && Array.isArray(responseData.items)) {
         fetchedPosts = responseData.items;
+      } else if (Array.isArray(responseData)) {
+        fetchedPosts = responseData;
       }
       
       setPosts(fetchedPosts);
