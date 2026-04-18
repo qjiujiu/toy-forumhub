@@ -4,6 +4,9 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 
 from app.models.post import Post, PostReviewStatus, PostPublishStatus, PostVisibility
+from app.models.post_content import PostContent
+from app.models.post_stats import PostStats
+from app.models.user import User
 
 from app.schemas.post import (
     PostOnlyCreate,
@@ -17,6 +20,10 @@ from app.schemas.post import (
     PostAdminOut,
     BatchPostsAdminOut
 )
+
+from sqlalchemy import desc, func
+from app.core.time import now_utc8
+
 from app.core.exceptions import ForbiddenAction
 from app.storage.post.post_interface import IPostRepository
 from app.core.db import transaction
@@ -437,6 +444,51 @@ class SQLAlchemyPostRepository(IPostRepository):
         获取近期点赞数最高的帖子
         TODO: Implement this method with joins
         """
+
+        cutoff_time = now_utc8() - datetime.timedelta(days=since_days)
+
+        rows = (
+            self.db.query(
+                Post.pid.label("pid"),
+                PostContent.title.label("title"),
+                User.uid.label("author_uid"),
+                User.nickname.label("author_nickname"),
+                User.avatar_url.label("author_avatar_url"),
+                func.coalesce(PostStats.like_count, 0).label("like_count"),
+                func.coalesce(PostStats.comment_count, 0).label("comment_count"),
+            )
+            .join(PostContent, PostContent.post_id == Post.pid)
+            .outerjoin(PostStats, PostStats.post_id == Post.pid)
+            .join(User, User.uid == Post.author_id)
+            .filter(
+                Post.visibility == PostVisibility.PUBLIC.value,
+                Post.publish_status == PostPublishStatus.PUBLISHED.value,
+                Post.review_status == PostReviewStatus.APPROVED.value,
+                Post.deleted_at.is_(None),
+                PostContent.created_at >= cutoff_time,
+            )
+            .order_by(
+                desc(func.coalesce(PostStats.like_count, 0)),
+                desc(PostContent.created_at),   # 点赞数相同时，新的靠前
+            )
+            .limit(limit)
+            .all()
+        )
+
+        return [
+            {
+                "pid": row.pid,
+                "title": row.title,
+                "author": {
+                    "uid": row.author_uid,
+                    "nickname": row.author_nickname,
+                    "avatar_url": row.author_avatar_url,
+                },
+                "like_count": row.like_count,
+                "comment_count": row.comment_count,
+            }
+            for row in rows
+        ]
         return []
 
     def get_top_commented_posts(self, limit: int = 10, since_days: int = 7) -> list[dict]:

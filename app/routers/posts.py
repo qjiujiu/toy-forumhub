@@ -31,6 +31,9 @@ from app.core.exceptions import PostNotFound, InvalidReviewStatusTransition, Use
 from app.core.logx import logger
 from fastapi.encoders import jsonable_encoder
 
+from redis import Redis
+from app.core.redis_client import get_redis
+
 posts_router = APIRouter(prefix="/posts", tags=["posts"])
 
 
@@ -75,6 +78,7 @@ def create_post(
 def get_post(
     pid: str,
     post_repo: IPostRepository = Depends(get_post_repo),
+    redis: Redis = Depends(get_redis),
 ):
     """
     通过帖子 ID 获取帖子详情（含内容 + 统计）
@@ -84,6 +88,7 @@ def get_post(
             post_repo=post_repo,
             pid=pid,
             to_dict=True,
+            cache=redis,
         )
         if not post:
             return BizResponse(data=None, msg=f"post {pid} not found", status_code=404)

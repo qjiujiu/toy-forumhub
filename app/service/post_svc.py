@@ -31,7 +31,12 @@ from app.storage.user.user_interface import IUserRepository
 
 from app.core.logx import logger
 from app.core.exceptions import PostNotFound, InvalidReviewStatusTransition, UserNotFound
+import json
+from redis import Redis
+from fastapi.encoders import jsonable_encoder
 
+POST_CACHE_KEY_PATTERN = "post:{pid}"      # 缓存 key 模板
+POST_CACHE_TTL_SECONDS = 60 * 5           # 缓存过期时间 5 分钟，可自行调整
 
 #---------------------------------------- 增 -----------------------------------------
 def create_post(
@@ -87,17 +92,44 @@ def create_post(
 
 
 #------------------------------- 用户：查阅，更新，软删 ------------------------------------
-
-def get_post_by_pid(post_repo: IPostRepository, pid: str, to_dict: bool = True,) -> Union[Dict, Optional[PostOut]]:
+# 添加 Redis 缓存逻辑
+def get_post_by_pid(
+    post_repo: IPostRepository,
+    pid: str,
+    to_dict: bool = True,
+    cache: Optional[Redis] = None,
+) -> Dict | Optional[PostOut]:
     """
     获取单个帖子详情（含内容 + 统计）
+    加入 Redis 缓存逻辑：
+    1. 先查 Redis
+    2. 未命中再查 MySQL
+    3. 查到后回写 Redis
     """
+    cache_key = POST_CACHE_KEY_PATTERN.format(pid=pid)
+
+    # 1. 先查 Redis
+    if cache is not None:
+        cached_value = cache.get(cache_key)
+        if cached_value is not None:
+            logger.info(f"Redis 命中缓存: {cache_key}")
+            # Redis 中存的是 JSON 字符串，先反序列化
+            cached_dict = json.loads(cached_value)
+
+            if to_dict:
+                # 调用方希望拿 dict
+                return cached_dict
+            else:
+                # 调用方希望拿 PostOut 对象
+                return PostOut.model_validate(cached_dict)
+
+    # 2. Redis 未命中 -> 查 MySQL（数据层逻辑保持不变）
     post = post_repo.viewer_get_post_by_pid(pid)
     if not post:
         return None
     return post.model_dump() if to_dict else post
 
-def get_batch_posts(post_repo: IPostRepository, page: int = 0, page_size: int = 10, to_dict: bool = True,) -> Union[Dict, BatchPostsOut]:
+def get_batch_posts(post_repo: IPostRepository, page: int = 0, page_size: int = 10, to_dict: bool = True,) -> Dict | BatchPostsOut:
     """
     分页获取帖子列表：
     - 按你的仓库实现默认为 _id 倒序
