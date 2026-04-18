@@ -10,7 +10,8 @@ from app.schemas.post import (
     PostAdminOut,
     BatchPostsAdminOut,
     PostReviewUpdate,
-    PostGet
+    PostGet,
+    TopPostsResponse
 )
 from app.core.biz_response import BizResponse
 from app.service import post_svc
@@ -432,3 +433,47 @@ def admin_restore_post(
     except Exception as e:
         logger.exception("admin_restore_post error")
         return BizResponse(data=None, msg=str(e),status_code=500)
+
+# ========================= 热榜相关接口 =========================
+
+@posts_router.get("/top/likes", response_model=TopPostsResponse)
+def get_top_liked_posts(
+    limit: int = 10,
+    since_days: int = 7,
+    post_repo: IPostRepository = Depends(get_post_repo),
+):
+    """
+    获取近期点赞数最高的帖子（带缓存建议）
+    TODO: Implement cache logic
+    """
+    try:
+        result = post_svc.get_top_liked_posts(
+            post_repo=post_repo,
+            limit=limit,
+            since_days=since_days,
+        )
+        return BizResponse(data=result)
+    except Exception as e:
+        logger.exception(e)
+        return BizResponse(data=None, msg=str(e), status_code=500)
+
+@posts_router.get("/top/comments", response_model=TopPostsResponse)
+def get_top_commented_posts(
+    limit: int = 10,
+    since_days: int = 7,
+    post_repo: IPostRepository = Depends(get_post_repo),
+):
+    """
+    获取近期评论数最高的帖子（带缓存建议）
+    TODO: Implement cache logic
+    """
+    try:
+        result = post_svc.get_top_commented_posts(
+            post_repo=post_repo,
+            limit=limit,
+            since_days=since_days,
+        )
+        return BizResponse(data=result)
+    except Exception as e:
+        logger.exception(e)
+        return BizResponse(data=None, msg=str(e), status_code=500)

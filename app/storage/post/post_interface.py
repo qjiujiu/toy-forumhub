@@ -126,3 +126,18 @@ class IPostRepository(Protocol):
     # 通过作者 ID 查看所有帖子（含软删）
     def admin_list_posts_by_author(self, author_id: str, page: int, page_size: int) -> BatchPostsAdminOut:
         ...
+
+    #----------------------------------- 热榜用 ----------------------------------------
+    def get_top_liked_posts(self, limit: int = 10, since_days: int = 7) -> list[dict]:
+        """
+        获取近期点赞数最高的帖子（返回 dict 列表供组装 TopPostOut）
+        TODO: Implement this method
+        """
+        ...
+
+    def get_top_commented_posts(self, limit: int = 10, since_days: int = 7) -> list[dict]:
+        """
+        获取近期评论数最高的帖子（返回 dict 列表供组装 TopPostOut）
+        TODO: Implement this method
+        """
+        ...

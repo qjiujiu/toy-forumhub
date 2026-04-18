@@ -326,3 +326,18 @@ def restore_post(
 
     logger.info(f"[ADMIN] restored post pid={pid}")
     return True
+
+#----------------------------------- 热榜用 ----------------------------------------
+def get_top_liked_posts(post_repo: IPostRepository, limit: int = 10, since_days: int = 7) -> dict:
+    """
+    获取近期点赞数最高的帖子（业务层）
+    TODO: Implement assembly to TopPostsResponse
+    """
+    return {"items": []}
+
+def get_top_commented_posts(post_repo: IPostRepository, limit: int = 10, since_days: int = 7) -> dict:
+    """
+    获取近期评论数最高的帖子（业务层）
+    TODO: Implement assembly to TopPostsResponse
+    """
+    return {"items": []}

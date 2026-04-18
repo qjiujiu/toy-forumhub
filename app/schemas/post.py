@@ -116,6 +116,34 @@ class BatchPostsOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class TopPostAuthorOut(BaseModel):
+    uid: str
+    nickname: str
+    avatar_url: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class TopPostOut(BaseModel):
+    """
+    专门用于热榜展示的轻量级返回值结构
+    """
+    pid: str                        # 帖子业务主键
+    title: str                      # 帖子标题
+    author: TopPostAuthorOut        # 作者基础信息
+    like_count: int                 # 点赞数
+    comment_count: int              # 评论数
+
+    model_config = ConfigDict(from_attributes=True)
+
+class TopPostsResponse(BaseModel):
+    """
+    热榜列表返回：
+    - items: 热榜帖子列表
+    """
+    items: List[TopPostOut]
+
+    model_config = ConfigDict(from_attributes=True)
+
 class PostUpdate(BaseModel):
     """
     作者更新帖子的可见性与发布状态
