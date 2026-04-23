@@ -15,12 +15,10 @@ from app.service.v2.user_svc import UserService
 
 from app.storage.database import (
     get_user_repo,
-    get_usersta_repo,
-    get_follow_repo,
+    get_usersta_repo
 )
-from app.storage.user.v2.user_interface import IUserRepository
-from app.storage.user_stats.user_stats_interface import IUserStatsRepository
-from app.storage.follow.follow_interface import IFollowRepository
+from app.storage.v2.user.user_interface import IUserRepository
+from app.storage.v2.user_stats.user_stats_interface import IUserStatsRepository
 
 from app.core.exceptions import (
     UserNotFound,
@@ -28,18 +26,9 @@ from app.core.exceptions import (
     AdminPermissionDenied
 )
 from app.core.logx import logger
-from fastapi.encoders import jsonable_encoder
 
 
 def get_user_service(
-    user_repo: IUserRepository = Depends(get_user_repo),
-    stats_repo: IUserStatsRepository = Depends(get_usersta_repo),
-    follow_repo: IFollowRepository = Depends(get_follow_repo),
-) -> UserService:
-    return UserService(user_repo, stats_repo, follow_repo)
-
-
-def get_user_service_basic(
     user_repo: IUserRepository = Depends(get_user_repo),
     stats_repo: IUserStatsRepository = Depends(get_usersta_repo),
 ) -> UserService:
@@ -73,7 +62,7 @@ def create_user(
 def query_batch_users(
     page: int = 0,
     page_size: int = 10,
-    user_service: UserService = Depends(get_user_service_basic),
+    user_service: UserService = Depends(get_user_service),
 ):
     """
     分页获取用户列表（只含基础信息）
@@ -94,7 +83,7 @@ def get_users_by_username(
     username: str,
     page: int = 0,
     page_size: int = 10,
-    user_service: UserService = Depends(get_user_service_basic),
+    user_service: UserService = Depends(get_user_service),
 ):
     """
     根据用户名分页查询同名用户
@@ -114,7 +103,7 @@ def get_users_by_username(
 @users_router.get("/id/{uid}", response_model=UserOut)
 def query_user_basic(
     uid: str,
-    user_service: UserService = Depends(get_user_service_basic),
+    user_service: UserService = Depends(get_user_service),
 ):
     """
     根据 uid 查询用户基础信息（不含关注/粉丝统计）
@@ -158,7 +147,7 @@ def query_user_profile(
 def update_user(
     uid: str,
     data: UserUpdate,
-    user_service: UserService = Depends(get_user_service_basic),
+    user_service: UserService = Depends(get_user_service),
 ):
     """
     普通用户更新自己的信息（不包含角色/状态）
@@ -180,7 +169,7 @@ def update_user(
 def change_password(
     uid: str,
     body: UserPasswordUpdate,
-    user_service: UserService = Depends(get_user_service_basic),
+    user_service: UserService = Depends(get_user_service),
 ):
     """
     修改密码（业务层会负责哈希和校验 old_password）
@@ -205,7 +194,7 @@ def change_password(
 @users_router.delete("/soft/id/{uid}")
 def soft_delete_user(
     uid: str,
-    user_service: UserService = Depends(get_user_service_basic),
+    user_service: UserService = Depends(get_user_service),
 ):
     """
     软删除用户
@@ -248,7 +237,7 @@ def hard_deleted_user(
 @users_router.put("/admin/ban", response_model=UserOut)
 def ban_user(
     body: AdminOperation,
-    user_service: UserService = Depends(get_user_service_basic),
+    user_service: UserService = Depends(get_user_service),
 ):
     """
     管理员封禁用户：将用户 status 设置为 BANNED (1)
@@ -273,7 +262,7 @@ def ban_user(
 @users_router.put("/admin/frozen", response_model=UserOut)
 def frozen_user(
     body: AdminOperation,
-    user_service: UserService = Depends(get_user_service_basic),
+    user_service: UserService = Depends(get_user_service),
 ):
     """
     管理员冻结用户：将用户 status 设置为 FROZEN (2)
@@ -298,7 +287,7 @@ def frozen_user(
 @users_router.put("/admin/promote/admin", response_model=UserOut)
 def promote_to_admin(
     body: AdminOperation,
-    user_service: UserService = Depends(get_user_service_basic),
+    user_service: UserService = Depends(get_user_service),
 ):
     """
     管理员将用户升级为管理员：将用户 role 设置为 ADMIN (2)
@@ -323,7 +312,7 @@ def promote_to_admin(
 @users_router.put("/admin/promote/moderator", response_model=UserOut)
 def promote_to_moderator(
     body: AdminOperation,
-    user_service: UserService = Depends(get_user_service_basic),
+    user_service: UserService = Depends(get_user_service),
 ):
     """
     管理员将用户升级为审核员：将用户 role 设置为 MODERATOR (1)
