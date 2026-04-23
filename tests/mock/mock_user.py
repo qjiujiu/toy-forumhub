@@ -1,202 +1,161 @@
 import uuid
-from datetime import datetime
-from typing import Dict, List, Optional
-from app.schemas.user import (
-    UserCreate, UserOut, UserAllOut, UserDetailOut, BatchUsersOut,
-    UserUpdate, AdminUserUpdate, BatchUsersAllOut
+from datetime import datetime, timezone, timedelta
+from typing import Dict, Optional
+from app.schemas.v2.user import (
+    UserCreate, UserOut, UserDto, BatchUsersOut,
 )
-from app.schemas.user_stats import (
-    UserStatsOut, UserStatsWithUserOut, UserStatsUpdate
-)
+from app.schemas.v2.user_stats import UserStatsDto, UserStatsWithUserOut
 from app.models.user import UserRole, UserStatus
+
 
 class MockUserRepository:
     def __init__(self):
-        self.users: Dict[str, UserAllOut] = {}
+        self.users: Dict[str, UserOut] = {}
+        self.passwords: Dict[str, str] = {}
 
-    def _to_user_out(self, user: UserAllOut) -> UserOut:
-        return UserOut(
-            uid=user.uid,
-            username=user.username,
-            avatar_url=user.avatar_url,
-            role=user.role,
-            bio=user.bio,
-            status=user.status
-        )
+    def get_password(self, uid: str) -> Optional[str]:
+        return self.passwords.get(uid)
 
-    def get_user_by_uid(self, uid: str) -> Optional[UserAllOut]:
-        user = self.users.get(uid)
-        if user and not user.deleted_at:
-            return user
+    def _base_query(self):
+        return [u for u in self.users.values() if not u.deleted_at and u.status == UserStatus.NORMAL]
+
+    def find_user(self, uid: Optional[str] = None, phone: Optional[str] = None) -> Optional[UserOut]:
+        if uid:
+            user = self.users.get(uid)
+            if user and not user.deleted_at and user.status == UserStatus.NORMAL:
+                return user
+            return None
+        elif phone:
+            for u in self._base_query():
+                if u.user_info.phone == phone:
+                    return u
+            return None
         return None
 
-    def get_user_detail_by_uid(self, uid: str) -> Optional[UserDetailOut]:
-        user = self.get_user_by_uid(uid)
-        if user:
-            return UserDetailOut.model_validate(user.model_dump())
-        return None
-
-    def get_user_by_phone(self, phone: str) -> Optional[UserOut]:
-        for u in self.users.values():
-            if u.phone == phone and not u.deleted_at:
-                return self._to_user_out(u)
-        return None
-
-    def get_users_by_username(self, username: str, page: int, page_size: int) -> BatchUsersOut:
-        matched = [self._to_user_out(u) for u in self.users.values() if u.username == username and not u.deleted_at]
-        start = page * page_size
-        end = start + page_size
-        return BatchUsersOut(total=len(matched), count=len(matched[start:end]), users=matched[start:end])
-
-    def get_batch_users(self, page: int, page_size: int) -> BatchUsersOut:
-        matched = [self._to_user_out(u) for u in self.users.values() if not u.deleted_at]
+    def list_users(
+        self,
+        username: Optional[str] = None,
+        page: int = 0,
+        page_size: int = 10,
+    ) -> BatchUsersOut:
+        matched = self._base_query()
+        if username:
+            matched = [u for u in matched if u.user_info.username == username]
+        matched.sort(key=lambda x: x.created_at, reverse=True)
         start = page * page_size
         end = start + page_size
         return BatchUsersOut(total=len(matched), count=len(matched[start:end]), users=matched[start:end])
 
     def create_user(self, user_data: UserCreate) -> UserOut:
         uid = str(uuid.uuid4())
-        new_user = UserAllOut(
+        now = datetime.now(timezone(timedelta(hours=8)))
+        new_user = UserOut(
             uid=uid,
-            username=user_data.username,
-            phone=user_data.phone,
-            email=user_data.email,
-            avatar_url=user_data.avatar_url,
-            bio=user_data.bio,
-            password=user_data.password,
-            role=user_data.role or UserRole.NORMAL_USER,
-            status=user_data.status or UserStatus.NORMAL,
-            created_at=datetime.now(),
-            updated_at=datetime.now(),
+            user_info=user_data.user_info,
+            role=UserRole.NORMAL_USER,
+            created_at=now,
+            updated_at=now,
         )
         self.users[uid] = new_user
-        return self._to_user_out(new_user)
+        self.passwords[uid] = user_data.password
+        return new_user
 
-    def update_user(self, uid: str, user_data: UserUpdate) -> Optional[UserOut]:
-        user = self.get_user_by_uid(uid)
-        if not user:
-            return None
-        update_data = user_data.model_dump(exclude_unset=True)
-        for k, v in update_data.items():
-            setattr(user, k, v)
-        user.updated_at = datetime.now()
-        return self._to_user_out(user)
-
-    def admin_update_user(self, uid: str, user_data: AdminUserUpdate) -> Optional[UserOut]:
+    def update_user(self, uid: str, **kwargs) -> Optional[UserOut]:
         user = self.users.get(uid)
-        if not user:
+        if not user or user.deleted_at or user.status != UserStatus.NORMAL:
             return None
-        update_data = user_data.model_dump(exclude_unset=True)
-        for k, v in update_data.items():
-            setattr(user, k, v)
-        user.updated_at = datetime.now()
-        return self._to_user_out(user)
 
-    def update_password(self, uid: str, new_password_hash: str) -> bool:
-        user = self.get_user_by_uid(uid)
-        if not user:
-            return False
-        user.password = new_password_hash
-        user.updated_at = datetime.now()
-        return True
+        now = datetime.now(timezone(timedelta(hours=8)))
+        for field, value in kwargs.items():
+            if value is not None:
+                if field == "user_info":
+                    user.user_info = value
+                elif field == "status":
+                    user.status = value
+                elif field == "role":
+                    user.role = value
+                elif field == "deleted_at":
+                    user.deleted_at = now if value else None
+                elif field == "password":
+                    self.passwords[uid] = value
+        user.updated_at = now
+        return user
 
-    def soft_delete_user(self, uid: str) -> bool:
-        user = self.get_user_by_uid(uid)
-        if not user:
-            return False
-        user.deleted_at = datetime.now()
-        return True
-
-    def hard_delete_user(self, uid: str) -> bool:
+    def delete_user(self, uid: str) -> bool:
         if uid in self.users:
             del self.users[uid]
+            if uid in self.passwords:
+                del self.passwords[uid]
             return True
         return False
 
-    def admin_get_users(self, page: int, page_size: int) -> BatchUsersAllOut:
-        matched = list(self.users.values())
-        start = page * page_size
-        end = start + page_size
-        return BatchUsersAllOut(total=len(matched), count=len(matched[start:end]), users=matched[start:end])
-
-    def admin_get_user_by_uid(self, uid: str) -> Optional[UserAllOut]:
-        return self.users.get(uid)
-
-    def admin_get_users_by_username(self, username: str, page: int, page_size: int) -> BatchUsersAllOut:
-        matched = [u for u in self.users.values() if u.username == username]
-        start = page * page_size
-        end = start + page_size
-        return BatchUsersAllOut(total=len(matched), count=len(matched[start:end]), users=matched[start:end])
-
-    def admin_list_deleted_users(self, page: int, page_size: int) -> BatchUsersAllOut:
-        matched = [u for u in self.users.values() if u.deleted_at is not None]
-        start = page * page_size
-        end = start + page_size
-        return BatchUsersAllOut(total=len(matched), count=len(matched[start:end]), users=matched[start:end])
-
-    def admin_list_abnormal_status_users(self, page: int, page_size: int) -> BatchUsersAllOut:
-        matched = [u for u in self.users.values() if u.status != UserStatus.NORMAL]
-        start = page * page_size
-        end = start + page_size
-        return BatchUsersAllOut(total=len(matched), count=len(matched[start:end]), users=matched[start:end])
 
 class MockUserStatsRepository:
     def __init__(self, user_repo: MockUserRepository):
-        self.stats: Dict[str, UserStatsOut] = {}
+        self.stats: Dict[str, UserStatsDto] = {}
         self.user_repo = user_repo
 
-    def get_by_user_id(self, user_id: str) -> Optional[UserStatsOut]:
-        return self.stats.get(user_id)
-
-    def get_with_user_by_user_id(self, user_id: str) -> Optional[UserStatsWithUserOut]:
-        stat = self.get_by_user_id(user_id)
+    def find_stats(self, user_id: str, with_user: bool = False) -> Optional[UserStatsWithUserOut]:
+        stat = self.stats.get(user_id)
         if not stat:
             return None
-        user_all = self.user_repo.get_user_by_uid(user_id)
-        if not user_all:
-            return None
-        user_out = self.user_repo._to_user_out(user_all)
+
+        if with_user:
+            user = self.user_repo.find_user(uid=user_id)
+            if not user:
+                return None
+            return UserStatsWithUserOut(
+                user_info=user,
+                user_stats=stat
+            )
         return UserStatsWithUserOut(
-            user=user_out,
-            following_count=stat.following_count,
-            followers_count=stat.followers_count
+            user_info=UserOut(uid=user_id, user_info=UserDto(username="", phone="")),
+            user_stats=stat
         )
 
-    def create_for_user(self, user_id: str) -> UserStatsOut:
+    def get_or_create_stats(self, user_id: str) -> UserStatsDto:
         if user_id not in self.stats:
-            self.stats[user_id] = UserStatsOut(
-                user_id=user_id,
+            self.stats[user_id] = UserStatsDto(
                 following_count=0,
                 followers_count=0
             )
         return self.stats[user_id]
 
-    def update_statistics(self, user_id: str, data: UserStatsUpdate) -> Optional[UserStatsOut]:
-        stat = self.get_by_user_id(user_id)
-        if not stat:
-            return None
-        if data.following_count is not None:
-            stat.following_count = data.following_count
-        if data.followers_count is not None:
-            stat.followers_count = data.followers_count
+    def create_for_user(self, user_id: str) -> UserStatsDto:
+        return self.get_or_create_stats(user_id)
+
+    def update_stats(self, user_id: str, following_step: int = 0, followers_step: int = 0) -> Optional[UserStatsDto]:
+        if following_step == 0 and followers_step == 0:
+            return self.get_or_create_stats(user_id)
+
+        stat = self.stats.get(user_id)
+        if stat is None:
+            if following_step > 0 or followers_step > 0:
+                stat = UserStatsDto(following_count=0, followers_count=0)
+                self.stats[user_id] = stat
+            else:
+                return None
+
+        if following_step != 0:
+            stat.following_count = max(0, stat.following_count + following_step)
+        if followers_step != 0:
+            stat.followers_count = max(0, stat.followers_count + followers_step)
         return stat
 
-    def update_following(self, user_id: str, step: int = 1) -> UserStatsOut:
-        stat = self.get_by_user_id(user_id)
-        if not stat:
-            stat = self.create_for_user(user_id)
-        stat.following_count += step
-        return stat
-
-    def update_followers(self, user_id: str, step: int = 1) -> UserStatsOut:
-        stat = self.get_by_user_id(user_id)
-        if not stat:
-            stat = self.create_for_user(user_id)
-        stat.followers_count += step
-        return stat
-
-    def delete_by_user_id(self, user_id: str) -> bool:
+    def delete_stats(self, user_id: str) -> bool:
         if user_id in self.stats:
             del self.stats[user_id]
             return True
         return False
+
+    def get_by_user_id(self, user_id: str) -> Optional[UserStatsDto]:
+        return self.stats.get(user_id)
+
+    def update_following(self, user_id: str, step: int = 1) -> UserStatsDto:
+        return self.update_stats(user_id, following_step=step)
+
+    def update_followers(self, user_id: str, step: int = 1) -> UserStatsDto:
+        return self.update_stats(user_id, followers_step=step)
+
+    def delete_by_user_id(self, user_id: str) -> bool:
+        return self.delete_stats(user_id)
