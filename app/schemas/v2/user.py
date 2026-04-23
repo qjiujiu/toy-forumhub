@@ -77,3 +77,14 @@ class AdminOperation(BaseModel):
     user_uid: str
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+
+class AdminUserUpdate(BaseModel):
+    """
+    管理员更新（可以修改角色、状态等敏感字段）
+    """
+    user_info: Optional[UserDto] = None
+    role: Optional[UserRole] = None
+    status: Optional[UserStatus] = None
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
