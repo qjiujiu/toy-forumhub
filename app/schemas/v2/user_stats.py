@@ -8,12 +8,13 @@ class UserStatsDto(BaseModel):
     单条用户统计信息输出：
     - 展示用户的关注数、粉丝数
     - 常用于 GET /users/{uid}/statistics
+
+    - 注意：通常不会暴露给前端接口。
     """
     following_count: int
     followers_count: int
 
     model_config = ConfigDict(from_attributes=True)
-
 
 class UserStatsWithUserOut(BaseModel):
     """
@@ -24,13 +25,3 @@ class UserStatsWithUserOut(BaseModel):
     user_stats: UserStatsDto
 
     model_config = ConfigDict(from_attributes=True)
-
-# 通常用不上
-class UserStatsUpdate(BaseModel):
-    """
-    用于服务层内部更新统计数据。
-    - 注意：通常不会暴露给前端接口。
-    """
-    user_stats: UserStatsDto
-
-    model_config = ConfigDict(from_attributes=True, extra="forbid")
