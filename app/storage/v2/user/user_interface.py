@@ -5,6 +5,7 @@ from app.schemas.v2.user import (
     UserCreate,
     UserOut,
     BatchUsersOut,
+    UserUpdateDto,
 )
 
 
@@ -39,11 +40,9 @@ class IUserRepository(Protocol):
         """
         ...
 
-    def update_user(self, uid: str, **kwargs) -> Optional[UserOut]:
+    def update_user(self, uid: str, update_dto: UserUpdateDto) -> Optional[UserOut]:
         """
-        通用更新用户
-        通过 kwargs 传入要更新的字段，支持：user_info, status, role, deleted_at, password 等
-        软删除通过 deleted_at=True 传入
+        更新用户 - 通过 DTO 封装所有可更新字段
         """
         ...
 

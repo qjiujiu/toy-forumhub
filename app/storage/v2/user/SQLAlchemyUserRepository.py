@@ -1,34 +1,49 @@
 from typing import Optional
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
-from app.models.user import User, UserRole, UserStatus
+from app.models.v2.user import User, UserRole, UserStatus
 from app.schemas.v2.user import (
-    UserDto,
+    UserInfoDto,
+    UserTimeDto,
     UserCreate,
     UserOut,
     BatchUsersOut,
+    UserUpdateDto,
 )
 from app.storage.v2.user.user_interface import IUserRepository
 from app.core.db import transaction
 
 
-def _map_user_to_out(user: User) -> UserOut:
+def _to_user_out(user: User) -> UserOut:
     return UserOut(
         uid=user.uid,
-        user_info=UserDto(
-            username=user.username,
-            phone=user.phone,
-            email=user.email,
-            avatar_url=user.avatar_url,
-            bio=user.bio,
-        ),
-        role=user.role,
-        status=user.status,
-        last_login_at=user.last_login_at,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
-        deleted_at=user.deleted_at,
+        user_info=UserInfoDto.model_validate(user),
+        user_data=UserTimeDto.model_validate(user),
     )
+
+
+def _apply_nested_dto(user, dto, field_names: list, now: datetime = None):
+    for field in field_names:
+        value = getattr(dto, field, None)
+        if value is not None:
+            setattr(user, field, value)
+
+
+def _apply_user_update(user: User, update_dto: UserUpdateDto, now: datetime):
+    if update_dto.user_info is not None:
+        _apply_nested_dto(user, update_dto.user_info, ["username", "phone", "email", "avatar_url", "bio", "role", "status"])
+
+    if update_dto.user_data is not None:
+        time_fields = ["last_login_at", "created_at", "updated_at", "deleted_at"]
+        for field in time_fields:
+            value = getattr(update_dto.user_data, field, None)
+            if value is not None:
+                setattr(user, field, value)
+            else:
+                setattr(user, field, now)
+
+    if update_dto.password is not None:
+        user.password = update_dto.password
 
 
 class SQLAlchemyUserRepository(IUserRepository):
@@ -48,7 +63,7 @@ class SQLAlchemyUserRepository(IUserRepository):
             user = self._base_query().filter(User.phone == phone).first()
         else:
             return None
-        return _map_user_to_out(user) if user else None
+        return _to_user_out(user) if user else None
 
     def list_users(
         self,
@@ -63,7 +78,7 @@ class SQLAlchemyUserRepository(IUserRepository):
 
         total = base_q.count()
         users_orm = base_q.offset(page * page_size).limit(page_size).all()
-        users_out = [_map_user_to_out(u) for u in users_orm]
+        users_out = [_to_user_out(u) for u in users_orm]
 
         return BatchUsersOut(
             total=total,
@@ -72,13 +87,9 @@ class SQLAlchemyUserRepository(IUserRepository):
         )
 
     def create_user(self, user_data: UserCreate) -> UserOut:
-        user_info = user_data.user_info
         user = User(
-            username=user_info.username,
-            phone=user_info.phone,
-            email=user_info.email,
-            avatar_url=user_info.avatar_url,
-            bio=user_info.bio,
+            username=user_data.username,
+            phone=user_data.phone,
             password=user_data.password,
             role=UserRole.NORMAL_USER.value,
             status=UserStatus.NORMAL.value,
@@ -86,34 +97,19 @@ class SQLAlchemyUserRepository(IUserRepository):
         with transaction(self.db):
             self.db.add(user)
         self.db.refresh(user)
-        return _map_user_to_out(user)
+        return _to_user_out(user)
 
-    def update_user(self, uid: str, **kwargs) -> Optional[UserOut]:
+    def update_user(self, uid: str, update_dto: UserUpdateDto) -> Optional[UserOut]:
         user = self._base_query().filter(User.uid == uid).first()
         if not user:
             return None
 
+        now = datetime.now(timezone(timedelta(hours=8)))
         with transaction(self.db):
-            for field, value in kwargs.items():
-                if value is not None:
-                    if field == "user_info":
-                        user.username = value.username
-                        user.phone = value.phone
-                        user.email = value.email
-                        user.avatar_url = value.avatar_url
-                        user.bio = value.bio
-                    elif field == "status":
-                        user.status = value
-                    elif field == "role":
-                        user.role = value
-                    elif field == "deleted_at":
-                        user.deleted_at = datetime.now(timezone(timedelta(hours=8))) if value else None
-                    elif field == "password":
-                        user.password = value
-            user.updated_at = datetime.now(timezone(timedelta(hours=8)))
+            _apply_user_update(user, update_dto, now)
 
         self.db.refresh(user)
-        return _map_user_to_out(user)
+        return _to_user_out(user)
 
     def delete_user(self, uid: str) -> bool:
         user = self.db.query(User).filter(User.uid == uid).first()
