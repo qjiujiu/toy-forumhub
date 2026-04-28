@@ -1,39 +1,23 @@
 from typing import Optional
 from sqlalchemy.orm import Session
-from app.models.user_stats import UserStats
-from app.models.user import User, UserRole, UserStatus
+from app.models.v2.user_stats import UserStats
+from app.models.v2.user import User
+
 from app.schemas.v2.user_stats import (
     UserStatsDto,
     UserStatsWithUserOut,
 )
-from app.schemas.v2.user import UserDto, UserOut
+from app.schemas.v2.user import UserOut, UserInfoDto, UserTimeDto
 from app.storage.v2.user_stats.user_stats_interface import IUserStatsRepository
+
 from app.core.db import transaction
 
 
-def _map_stats_to_dto(stats: UserStats) -> UserStatsDto:
-    return UserStatsDto(
-        following_count=stats.following_count,
-        followers_count=stats.followers_count,
-    )
-
-
-def _map_user_to_out(user: User) -> UserOut:
+def _to_user_out(user: User) -> UserOut:
     return UserOut(
         uid=user.uid,
-        user_info=UserDto(
-            username=user.username,
-            phone=user.phone,
-            email=user.email,
-            avatar_url=user.avatar_url,
-            bio=user.bio,
-        ),
-        role=user.role,
-        status=user.status,
-        last_login_at=user.last_login_at,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
-        deleted_at=user.deleted_at,
+        user_info=UserInfoDto.model_validate(user),
+        user_data=UserTimeDto.model_validate(user),
     )
 
 
@@ -58,12 +42,12 @@ class SQLAlchemyUserStatsRepository(IUserStatsRepository):
             if not user:
                 return None
             return UserStatsWithUserOut(
-                user_info=_map_user_to_out(user),
-                user_stats=_map_stats_to_dto(stats),
+                user_info=_to_user_out(user),
+                user_stats=UserStatsDto.model_validate(stats),
             )
         return UserStatsWithUserOut(
-            user_info=UserOut(uid=user_id, user_info=UserDto(username="", phone="")),
-            user_stats=_map_stats_to_dto(stats),
+            user_info=UserOut(uid=user_id, user_info=UserInfoDto(), user_data=UserTimeDto()),
+            user_stats=UserStatsDto.model_validate(stats),
         )
 
     def get_or_create_stats(self, user_id: str) -> UserStatsDto:
@@ -73,7 +57,7 @@ class SQLAlchemyUserStatsRepository(IUserStatsRepository):
             with transaction(self.db):
                 self.db.add(stats)
             self.db.refresh(stats)
-        return _map_stats_to_dto(stats)
+        return UserStatsDto.model_validate(stats)
 
     def update_stats(self, user_id: str, following_step: int = 0, followers_step: int = 0) -> Optional[UserStatsDto]:
         if following_step == 0 and followers_step == 0:
@@ -95,7 +79,7 @@ class SQLAlchemyUserStatsRepository(IUserStatsRepository):
                 stats.followers_count = max(0, stats.followers_count + followers_step)
 
         self.db.refresh(stats)
-        return _map_stats_to_dto(stats)
+        return UserStatsDto.model_validate(stats)
 
     def delete_stats(self, user_id: str) -> bool:
         stats = self._get_stats_orm(user_id)
