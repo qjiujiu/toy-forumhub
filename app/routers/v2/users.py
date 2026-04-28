@@ -8,12 +8,10 @@ from app.schemas.v2.user import (
     UserPasswordUpdate,
     AdminOperation,
 )
-from app.schemas.user_stats import UserStatsWithUserOut
-
-from app.core.biz_response import BizResponse
+from app.schemas.v2.user_stats import UserStatsWithUserOut
 from app.service.v2.user_svc import UserService
 
-from app.storage.database import (
+from app.storage.v2.database import (
     get_user_repo,
     get_usersta_repo
 )
@@ -25,7 +23,9 @@ from app.core.exceptions import (
     PasswordMismatchError,
     AdminPermissionDenied
 )
+
 from app.core.logx import logger
+from app.core.biz_response import BizResponse
 
 
 def get_user_service(
