@@ -1,4 +1,5 @@
 from typing import Dict, Optional, Union
+from datetime import datetime, timezone, timedelta
 
 from app.schemas.v2.user import (
     UserCreate,
@@ -6,6 +7,11 @@ from app.schemas.v2.user import (
     UserOut,
     BatchUsersOut,
     UserPasswordUpdate,
+    UserUpdateDto,
+    UserInfoDto,
+    UserTimeDto,
+    UserStatus,
+    UserRole,
 )
 from app.schemas.v2.user_stats import UserStatsWithUserOut
 
@@ -22,38 +28,28 @@ class UserService:
         self._user_repo = user_repo
         self._stats_repo = stats_repo
 
-    def _hash_password(self, password: str) -> str:
-        return hash_password(password)
-
-    def _verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        return verify_password(plain_password, hashed_password)
-
     def _get_user_or_raise(self, uid: str) -> UserOut:
         user = self._user_repo.find_user(uid=uid)
         if not user:
             raise UserNotFound(f"user {uid} not found")
         return user
 
-    def _log_operation(self, operation: str, details: str) -> None:
-        logger.info(f"[{operation}] {details}")
-
     def _verify_admin(self, admin_uid: str) -> None:
         user = self._user_repo.find_user(uid=admin_uid)
         if not user:
             raise UserNotFound(f"admin user {admin_uid} not found")
-        if user.role != 2:
+        if user.user_info.role != UserRole.ADMIN:
             raise AdminPermissionDenied(f"User {admin_uid} is not an admin")
 
     def create_user(self, user_data: UserCreate, to_dict: bool = True) -> Union[Dict, UserOut]:
         if user_data.password:
-            hashed = self._hash_password(user_data.password)
-            user_data.password = hashed
+            user_data.password = hash_password(user_data.password)
 
         new_user = self._user_repo.create_user(user_data)
-        self._log_operation("CREATE_USER", f"Created user uid={new_user.uid}")
+        logger.info(f"[CREATE_USER] Created user uid={new_user.uid}")
 
         self._stats_repo.get_or_create_stats(new_user.uid)
-        self._log_operation("CREATE_USER", f"Initialized statistics for user uid={new_user.uid}")
+        logger.info(f"[CREATE_USER] Initialized statistics for user uid={new_user.uid}")
 
         return new_user.model_dump() if to_dict else new_user
 
@@ -104,7 +100,8 @@ class UserService:
         data: UserUpdate,
         to_dict: bool = True
     ) -> Optional[Union[Dict, UserOut]]:
-        updated = self._user_repo.update_user(uid, user_info=data.user_info)
+        update_dto = UserUpdateDto(user_info=UserInfoDto.model_validate(data.user_info, from_attributes=True))
+        updated = self._user_repo.update_user(uid, update_dto)
         if not updated:
             return None
         return updated.model_dump() if to_dict else updated
@@ -113,55 +110,61 @@ class UserService:
         stored_password = self._user_repo.get_password(uid)
         if not stored_password:
             raise UserNotFound(f"user {uid} not found")
-        if not self._verify_password(data.old_password, stored_password):
+        if not verify_password(data.old_password, stored_password):
             raise PasswordMismatchError()
 
         if data.new_password:
-            hashed = self._hash_password(data.new_password)
-            self._user_repo.update_user(uid, password=hashed)
+            update_dto = UserUpdateDto(password=hash_password(data.new_password))
+            self._user_repo.update_user(uid, update_dto)
         return True
 
     def soft_delete_user(self, uid: str) -> bool:
-        result = self._user_repo.update_user(uid, deleted_at=True)
+        now = datetime.now(timezone(timedelta(hours=8)))
+        update_dto = UserUpdateDto(user_data=UserTimeDto(deleted_at=now))
+        result = self._user_repo.update_user(uid, update_dto)
         if result:
-            self._log_operation("SOFT_DELETE", f"Soft deleted user uid={uid}")
+            logger.info(f"[SOFT_DELETE] Soft deleted user uid={uid}")
         return result is not None
 
     def hard_delete_user(self, admin_uid: str, user_uid: str) -> bool:
         self._verify_admin(admin_uid)
         ok = self._user_repo.delete_user(user_uid)
         if ok:
-            self._log_operation("HARD_DELETE", f"Hard deleted user uid={user_uid} by admin {admin_uid}")
+            logger.info(f"[HARD_DELETE] Hard deleted user uid={user_uid} by admin {admin_uid}")
         return ok
 
     def ban_user_by_uid(self, admin_uid: str, user_uid: str, to_dict: bool = True) -> Optional[Union[Dict, UserOut]]:
         self._verify_admin(admin_uid)
-        updated = self._user_repo.update_user(user_uid, status=1)
+        update_dto = UserUpdateDto(user_info=UserInfoDto(status=UserStatus.BANNED))
+        updated = self._user_repo.update_user(user_uid, update_dto)
         if not updated:
             return None
-        self._log_operation("BAN_USER", f"Banned user uid={user_uid} by admin {admin_uid}")
+        logger.info(f"[BAN_USER] Banned user uid={user_uid} by admin {admin_uid}")
         return updated.model_dump() if to_dict else updated
 
     def frozen_user_by_uid(self, admin_uid: str, user_uid: str, to_dict: bool = True) -> Optional[Union[Dict, UserOut]]:
         self._verify_admin(admin_uid)
-        updated = self._user_repo.update_user(user_uid, status=2)
+        update_dto = UserUpdateDto(user_info=UserInfoDto(status=UserStatus.FROZEN))
+        updated = self._user_repo.update_user(user_uid, update_dto)
         if not updated:
             return None
-        self._log_operation("FROZEN_USER", f"Frozen user uid={user_uid} by admin {admin_uid}")
+        logger.info(f"[FROZEN_USER] Frozen user uid={user_uid} by admin {admin_uid}")
         return updated.model_dump() if to_dict else updated
 
     def user_to_admin(self, admin_uid: str, user_uid: str, to_dict: bool = True) -> Optional[Union[Dict, UserOut]]:
         self._verify_admin(admin_uid)
-        updated = self._user_repo.update_user(user_uid, role=2)
+        update_dto = UserUpdateDto(user_info=UserInfoDto(role=UserRole.ADMIN))
+        updated = self._user_repo.update_user(user_uid, update_dto)
         if not updated:
             return None
-        self._log_operation("PROMOTE_ADMIN", f"Promoted user {user_uid} to admin by admin {admin_uid}")
+        logger.info(f"[PROMOTE_ADMIN] Promoted user {user_uid} to admin by admin {admin_uid}")
         return updated.model_dump() if to_dict else updated
 
     def user_to_moderator(self, admin_uid: str, user_uid: str, to_dict: bool = True) -> Optional[Union[Dict, UserOut]]:
         self._verify_admin(admin_uid)
-        updated = self._user_repo.update_user(user_uid, role=1)
+        update_dto = UserUpdateDto(user_info=UserInfoDto(role=UserRole.MODERATOR))
+        updated = self._user_repo.update_user(user_uid, update_dto)
         if not updated:
             return None
-        self._log_operation("PROMOTE_MODERATOR", f"Promoted user {user_uid} to moderator by admin {admin_uid}")
+        logger.info(f"[PROMOTE_MODERATOR] Promoted user {user_uid} to moderator by admin {admin_uid}")
         return updated.model_dump() if to_dict else updated
