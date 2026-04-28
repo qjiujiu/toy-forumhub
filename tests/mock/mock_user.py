@@ -2,10 +2,10 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Optional
 from app.schemas.v2.user import (
-    UserCreate, UserOut, UserDto, BatchUsersOut,
+    UserCreate, UserOut, UserInfoDto, UserTimeDto, BatchUsersOut, UserUpdateDto,
 )
 from app.schemas.v2.user_stats import UserStatsDto, UserStatsWithUserOut
-from app.models.user import UserRole, UserStatus
+from app.models.v2.user import UserRole, UserStatus
 
 
 class MockUserRepository:
@@ -17,12 +17,12 @@ class MockUserRepository:
         return self.passwords.get(uid)
 
     def _base_query(self):
-        return [u for u in self.users.values() if not u.deleted_at and u.status == UserStatus.NORMAL]
+        return [u for u in self.users.values() if not u.user_data.deleted_at and u.user_info.status == UserStatus.NORMAL]
 
     def find_user(self, uid: Optional[str] = None, phone: Optional[str] = None) -> Optional[UserOut]:
         if uid:
             user = self.users.get(uid)
-            if user and not user.deleted_at and user.status == UserStatus.NORMAL:
+            if user and not user.user_data.deleted_at and user.user_info.status == UserStatus.NORMAL:
                 return user
             return None
         elif phone:
@@ -41,7 +41,7 @@ class MockUserRepository:
         matched = self._base_query()
         if username:
             matched = [u for u in matched if u.user_info.username == username]
-        matched.sort(key=lambda x: x.created_at, reverse=True)
+        matched.sort(key=lambda x: x.user_data.created_at, reverse=True)
         start = page * page_size
         end = start + page_size
         return BatchUsersOut(total=len(matched), count=len(matched[start:end]), users=matched[start:end])
@@ -51,34 +51,60 @@ class MockUserRepository:
         now = datetime.now(timezone(timedelta(hours=8)))
         new_user = UserOut(
             uid=uid,
-            user_info=user_data.user_info,
-            role=UserRole.NORMAL_USER,
-            created_at=now,
-            updated_at=now,
+            user_info=UserInfoDto(
+                username=user_data.username,
+                phone=user_data.phone,
+                role=UserRole.NORMAL_USER,
+                status=UserStatus.NORMAL,
+            ),
+            user_data=UserTimeDto(
+                created_at=now,
+                updated_at=now,
+            ),
         )
         self.users[uid] = new_user
         self.passwords[uid] = user_data.password
         return new_user
 
-    def update_user(self, uid: str, **kwargs) -> Optional[UserOut]:
+    def update_user(self, uid: str, update_dto: UserUpdateDto) -> Optional[UserOut]:
         user = self.users.get(uid)
-        if not user or user.deleted_at or user.status != UserStatus.NORMAL:
+        if not user or user.user_data.deleted_at or user.user_info.status != UserStatus.NORMAL:
             return None
 
         now = datetime.now(timezone(timedelta(hours=8)))
-        for field, value in kwargs.items():
-            if value is not None:
-                if field == "user_info":
-                    user.user_info = value
-                elif field == "status":
-                    user.status = value
-                elif field == "role":
-                    user.role = value
-                elif field == "deleted_at":
-                    user.deleted_at = now if value else None
-                elif field == "password":
-                    self.passwords[uid] = value
-        user.updated_at = now
+
+        if update_dto.user_info is not None:
+            ui = update_dto.user_info
+            if ui.username is not None:
+                user.user_info.username = ui.username
+            if ui.phone is not None:
+                user.user_info.phone = ui.phone
+            if ui.email is not None:
+                user.user_info.email = ui.email
+            if ui.avatar_url is not None:
+                user.user_info.avatar_url = ui.avatar_url
+            if ui.bio is not None:
+                user.user_info.bio = ui.bio
+            if ui.role is not None:
+                user.user_info.role = ui.role
+            if ui.status is not None:
+                user.user_info.status = ui.status
+
+        if update_dto.user_data is not None:
+            ud = update_dto.user_data
+            if ud.last_login_at is not None:
+                user.user_data.last_login_at = ud.last_login_at
+            if ud.created_at is not None:
+                user.user_data.created_at = ud.created_at
+            if ud.updated_at is not None:
+                user.user_data.updated_at = ud.updated_at
+            if ud.deleted_at is not None:
+                user.user_data.deleted_at = ud.deleted_at
+
+        if update_dto.password is not None:
+            self.passwords[uid] = update_dto.password
+
+        user.user_data.updated_at = now
         return user
 
     def delete_user(self, uid: str) -> bool:
@@ -109,7 +135,7 @@ class MockUserStatsRepository:
                 user_stats=stat
             )
         return UserStatsWithUserOut(
-            user_info=UserOut(uid=user_id, user_info=UserDto(username="", phone="")),
+            user_info=UserOut(uid=user_id, user_info=UserInfoDto(), user_data=UserTimeDto()),
             user_stats=stat
         )
 
