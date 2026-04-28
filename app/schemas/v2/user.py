@@ -1,23 +1,42 @@
 from typing import List, Optional
 from pydantic import BaseModel, EmailStr, AnyUrl, ConfigDict
 from datetime import datetime
-from app.models.user import UserRole, UserStatus
 
-class UserDto(BaseModel):
-    username: str
-    phone: str
+from app.models.v2.user import UserRole, UserStatus
+
+
+class UserInfoDto(BaseModel):
+    username: Optional[str] = None
+    phone: Optional[str] = None
     email: Optional[EmailStr] = None
     avatar_url: Optional[str] = None
     bio: Optional[str] = None
+    role: Optional[UserRole] = None
+    status: Optional[UserStatus] = None
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+class UserTimeDto(BaseModel):
+    last_login_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
+
+class UserUpdateDto(BaseModel):
+    password: Optional[str] = None
+    user_info: Optional[UserInfoDto] = None
+    user_data: Optional[UserTimeDto] = None
+    
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
 
 class UserCreate(BaseModel):
     """
     创建用户（账号密码注册）
     """
-    user_info: UserDto
-    password: str
+    username: str
+    password: str 
+    phone: str
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
@@ -26,14 +45,8 @@ class UserOut(BaseModel):
     对外返回的用户基础信息
     """
     uid: str                                     # 业务主键（UUID 字符串）
-    user_info: UserDto
-    role: UserRole = UserRole.NORMAL_USER        # 角色
-    status: UserStatus = UserStatus.NORMAL.value # 状态
-
-    last_login_at: Optional[datetime] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-    deleted_at: Optional[datetime] = None
+    user_info: UserInfoDto
+    user_data: UserTimeDto
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -50,11 +63,12 @@ class BatchUsersOut(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class UserUpdate(BaseModel):
     """
-    更新用户
+    普通用户的可更新字段
     """
-    user_info: UserDto
+    user_info: UserInfoDto
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
@@ -75,16 +89,5 @@ class AdminOperation(BaseModel):
 
     admin_uid: str
     user_uid: str
-
-    model_config = ConfigDict(from_attributes=True, extra="forbid")
-
-
-class AdminUserUpdate(BaseModel):
-    """
-    管理员更新（可以修改角色、状态等敏感字段）
-    """
-    user_info: Optional[UserDto] = None
-    role: Optional[UserRole] = None
-    status: Optional[UserStatus] = None
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
