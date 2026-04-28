@@ -159,3 +159,10 @@ class HardDeleteFollowRequiresSoftDeleteError(Exception):
         super().__init__(
             f"follow relation {user_id} -> {followed_user_id} must be soft-deleted before hard delete"
         )
+
+
+class AdminPermissionDenied(Exception):
+    """管理员权限不足"""
+    def __init__(self, message: str = "Admin permission denied"):
+        self.message = message
+        super().__init__(message)
