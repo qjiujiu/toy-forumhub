@@ -13,6 +13,15 @@ class MockUserRepository:
         self.users: Dict[str, UserOut] = {}
         self.passwords: Dict[str, str] = {}
 
+        # user_stats 在真实系统里是一张独立的数据表。
+        # 但是“数据访问层”希望屏蔽分表细节，因此这里把它作为 MockUserRepository 的内部存储。
+        #
+        # 知识点：Mock 设计目标
+        # - Mock 并非了 100% 模拟数据库行为
+        # - Mock 目标是让上层（service/api）在不依赖真实 DB 的情况下验证业务逻辑
+        # - 因此 mock repo 边界应该和真实 repo 边界一致（对外只暴露一个聚合仓储）
+        self._stats: Dict[str, UserStatsDto] = {}
+
     def get_password(self, uid: str) -> Optional[str]:
         return self.passwords.get(uid)
 
@@ -64,6 +73,10 @@ class MockUserRepository:
         )
         self.users[uid] = new_user
         self.passwords[uid] = user_data.password
+
+        # 创建用户时初始化统计信息（聚合内一致性）。
+        # 这里直接写入默认值，而不是通过 get_or_create 做兜底，避免“读路径带写入”的误解。
+        self._stats[uid] = UserStatsDto(following_count=0, followers_count=0)
         return new_user
 
     def update_user(self, uid: str, update_dto: UserUpdateDto) -> Optional[UserOut]:
@@ -112,55 +125,31 @@ class MockUserRepository:
             del self.users[uid]
             if uid in self.passwords:
                 del self.passwords[uid]
+
+            # 真实数据库中 user_stats 可能配置了外键与级联删除。
+            # 这里用显式删除模拟“硬删除用户后统计记录也不应残留”。
+            self._stats.pop(uid, None)
             return True
         return False
 
+    # ===================== 聚合能力：user_stats（mock 版） =====================
 
-class MockUserStatsRepository:
-    def __init__(self, user_repo: MockUserRepository):
-        self.stats: Dict[str, UserStatsDto] = {}
-        self.user_repo = user_repo
-
-    def find_stats(self, user_id: str, with_user: bool = False) -> Optional[UserStatsWithUserOut]:
-        stat = self.stats.get(user_id)
-        if not stat:
-            return None
-
-        if with_user:
-            user = self.user_repo.find_user(uid=user_id)
-            if not user:
-                return None
-            return UserStatsWithUserOut(
-                user_info=user,
-                user_stats=stat
+    def get_stats(self, user_id: str) -> UserStatsDto:
+        stats = self._stats.get(user_id)
+        if stats is None:
+            raise RuntimeError(
+                f"user_stats missing for user_id={user_id}; "
+                f"this violates aggregate invariant (users/user_stats should be created together)."
             )
-        return UserStatsWithUserOut(
-            user_info=UserOut(uid=user_id, user_info=UserInfoDto(), user_data=UserTimeDto()),
-            user_stats=stat
-        )
+        return stats
 
-    def get_or_create_stats(self, user_id: str) -> UserStatsDto:
-        if user_id not in self.stats:
-            self.stats[user_id] = UserStatsDto(
-                following_count=0,
-                followers_count=0
-            )
-        return self.stats[user_id]
-
-    def create_for_user(self, user_id: str) -> UserStatsDto:
-        return self.get_or_create_stats(user_id)
-
-    def update_stats(self, user_id: str, following_step: int = 0, followers_step: int = 0) -> Optional[UserStatsDto]:
+    def update_stats(self, user_id: str, following_step: int = 0, followers_step: int = 0) -> UserStatsDto:
         if following_step == 0 and followers_step == 0:
-            return self.get_or_create_stats(user_id)
+            return self.get_stats(user_id)
 
-        stat = self.stats.get(user_id)
+        stat = self._stats.get(user_id)
         if stat is None:
-            if following_step > 0 or followers_step > 0:
-                stat = UserStatsDto(following_count=0, followers_count=0)
-                self.stats[user_id] = stat
-            else:
-                return None
+            raise RuntimeError(f"user_stats missing for user_id={user_id}; cannot update stats")
 
         if following_step != 0:
             stat.following_count = max(0, stat.following_count + following_step)
@@ -168,20 +157,9 @@ class MockUserStatsRepository:
             stat.followers_count = max(0, stat.followers_count + followers_step)
         return stat
 
-    def delete_stats(self, user_id: str) -> bool:
-        if user_id in self.stats:
-            del self.stats[user_id]
-            return True
-        return False
-
-    def get_by_user_id(self, user_id: str) -> Optional[UserStatsDto]:
-        return self.stats.get(user_id)
-
-    def update_following(self, user_id: str, step: int = 1) -> UserStatsDto:
-        return self.update_stats(user_id, following_step=step)
-
-    def update_followers(self, user_id: str, step: int = 1) -> UserStatsDto:
-        return self.update_stats(user_id, followers_step=step)
-
-    def delete_by_user_id(self, user_id: str) -> bool:
-        return self.delete_stats(user_id)
+    def get_user_profile(self, user_id: str) -> Optional[UserStatsWithUserOut]:
+        user = self.find_user(uid=user_id)
+        if not user:
+            return None
+        stats = self.get_stats(user_id)
+        return UserStatsWithUserOut(user_info=user, user_stats=stats)

@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
 
+from app.models.v2.post import PostPublishStatus, PostVisibility
 from app.schemas.v2.post import (
     BatchPostsOut,
     PostCreate,
@@ -11,103 +12,154 @@ from app.schemas.v2.post import (
     TopPostAuthorOut,
     TopPostOut,
 )
-from app.schemas.v2.post_content import PostContentCreate, PostContentOut, PostContentUpdate
-from app.schemas.v2.post_stats import BatchPostStatsOut, PostStatsCreate, PostStatsOut, PostStatsDto
+from app.schemas.v2.post_content import PostContentOut, PostContentUpdate
+from app.schemas.v2.post_stats import PostStatsDto
+
+
+_TZ_UTC8 = timezone(timedelta(hours=8))
 
 
 class MockPostRepository:
-    def __init__(self, content_repo=None, stats_repo=None):
-        # posts[pid] = {"pid": str, "author_id": str, "post_status": PostDto, "deleted": bool}
-        self.posts: Dict[str, dict] = {}
-        self._content_repo = content_repo
-        self._stats_repo = stats_repo
+    """v2 内存版 Post 聚合仓储（Aggregate Repository）。
 
-    def set_related_repos(self, content_repo, stats_repo):
-        self._content_repo = content_repo
-        self._stats_repo = stats_repo
+    设计目标：与 `app/storage/v2/post/post_interface.py` 的协议保持一致。
+
+    关键教学点：
+    - 数据库里虽然拆成 `posts/post_contents/post_stats` 三表，但是 repo 对外仍是“一个对象”。
+    - mock repo 不再用使用三个 repo 互相组装, 而是在一个对象里维护 3 份内存数据，模拟三表。
+    """
+
+    def __init__(self, user_repo=None):
+        # posts[pid] = {"_id": int, "pid": str, "author_id": str, "post_status": PostDto, "deleted_at": datetime|None}
+        self.posts: Dict[str, dict] = {}
+
+        # contents[pid] = PostContentOut（模拟 post_contents 表）
+        self.contents: Dict[str, PostContentOut] = {}
+
+        # stats[pid] = PostStatsDto（模拟 post_stats 表）
+        self.stats: Dict[str, PostStatsDto] = {}
+
+        # 用自增整数模拟 posts._id（用于排序/稳定性）
+        self._auto_id = 0
+
+        # 为热榜输出作者信息（SQLAlchemy repo 会 join user 表；mock 用 repo 注入来模拟）
+        self._user_repo = user_repo
+
+    def _now(self) -> datetime:
+        return datetime.now(_TZ_UTC8)
+
+    def _normalize_status(self, status: Optional[PostDto]) -> PostDto:
+        """把“未显式传入”的字段补成与数据库一致的默认值。
+
+        说明：
+        - SQLAlchemy 模型里 `visibility/publish_status` 都有默认值；repo 层如果不显式写入，会落到 DB default。
+        - mock 没有 DB，所以需要在内存里补默认值，否则 service 的状态机逻辑会出现偏差。
+        """
+
+        s = status or PostDto()
+        if s.visibility is None:
+            s.visibility = PostVisibility.PUBLIC
+        if s.publish_status is None:
+            s.publish_status = PostPublishStatus.PUBLISHED
+        return s
+
+    # ========== 增 ==========
 
     def create(self, data: PostOnlyCreate) -> str:
+        """只写入 posts 这张“状态/索引表”（mock 版）。"""
+
+        self._auto_id += 1
         pid = str(uuid.uuid4())
-        status = data.post_status
-        if status is None or status.publish_status is None:
-            status = PostDto(publish_status=0)
+        status = self._normalize_status(data.post_status)
         self.posts[pid] = {
+            "_id": self._auto_id,
             "pid": pid,
             "author_id": data.author_id,
             "post_status": status,
+            "deleted_at": None,
         }
         return pid
 
     def create_post(self, data: PostCreate) -> PostOut:
-        """创建帖子聚合（mock 版）。
+        """创建帖子聚合：一次性写入 posts + post_contents + post_stats（mock 版）。"""
 
-        说明：
-        - 真实 SQLAlchemy repo 会在一个事务里写入三表。
-        - mock 版没有数据库，所以用三个内存仓库来模拟三张表。
-        - 关键在于“对外只暴露一个仓储入口”：上层只关心 create_post，而不关心三表细节。
-        """
         pid = self.create(PostOnlyCreate(author_id=data.author_id, post_status=data.post_status))
 
-        if self._content_repo:
-            self._content_repo.create(PostContentCreate(post_id=pid, title=data.title, content=data.content))
-        if self._stats_repo:
-            self._stats_repo.create(PostStatsCreate(post_id=pid, post_stats=PostStatsDto()))
+        # mock 版的“同一事务”体现为：在一个函数里把三份数据同时写入。
+        # 如果未来要模拟失败回滚，可以在这里引入 try/except 并回滚内存字典。
+        now = self._now()
+        self.contents[pid] = PostContentOut(
+            pcid=str(uuid.uuid4()),
+            post_id=pid,
+            title=data.title,
+            content=data.content,
+            created_at=now,
+        )
+        self.stats[pid] = PostStatsDto(like_count=0, comment_count=0)
 
         out = self.get_by_pid(pid)
         if not out:
+            # 正常情况下不应发生；如果发生说明 mock 的聚合读取逻辑写坏了。
             raise RuntimeError(f"post {pid} not found after creation")
         return out
 
-    def get_by_pid(self, pid: str) -> Optional[PostOut]:
-        post = self.posts.get(pid)
-        if not post or post.get("deleted"):
+    # ========== 查 ==========
+
+    def _build_post_out(self, post_row: dict) -> Optional[PostOut]:
+        """把三份内存数据组装成 `PostOut`。
+
+        教学点：
+        - `PostOut.post_content` 在 schema 层是必填。
+        - 如果出现 posts 存在但 content 缺失，说明“聚合不变式”被破坏。
+          我们选择返回 None，让上层尽早暴露问题（fail fast）。
+        """
+
+        pid = post_row["pid"]
+        content = self.contents.get(pid)
+        if not content:
             return None
 
-        content = None
-        stats = None
-        if self._content_repo:
-            content = self._content_repo.get_by_post_id(pid)
-        if self._stats_repo:
-            stats_out = self._stats_repo.get_by_post_id(pid)
-            if stats_out:
-                stats = stats_out.post_stats
-
+        stats = self.stats.get(pid) or PostStatsDto(like_count=0, comment_count=0)
         return PostOut(
-            pid=post["pid"],
-            author_id=post["author_id"],
-            post_status=post["post_status"],
+            pid=pid,
+            author_id=post_row["author_id"],
+            post_status=post_row["post_status"],
             post_content=content,
-            post_stats=stats or PostStatsDto(),
+            post_stats=stats,
         )
 
+    def get_by_pid(self, pid: str) -> Optional[PostOut]:
+        post = self.posts.get(pid)
+        if not post:
+            return None
+        if post.get("deleted_at") is not None:
+            return None
+        return self._build_post_out(post)
+
     def get_by_author(self, author_id: str, page: int = 0, page_size: int = 20) -> BatchPostsOut:
-        matched = []
-        for p in self.posts.values():
-            if p["author_id"] == author_id and not p.get("deleted"):
-                post_out = self.get_by_pid(p["pid"])
-                if post_out:
-                    matched.append(post_out)
-        matched.sort(key=lambda x: x.post_content.created_at if x.post_content else datetime.min, reverse=True)
-        start = page * page_size
-        end = start + page_size
-        return BatchPostsOut(total=len(matched), count=len(matched[start:end]), items=matched[start:end])
+        rows = [p for p in self.posts.values() if p["author_id"] == author_id and p.get("deleted_at") is None]
+        rows.sort(key=lambda x: x["_id"], reverse=True)
+        total = len(rows)
+        page_rows = rows[page * page_size: page * page_size + page_size]
+        items = [out for r in page_rows if (out := self._build_post_out(r)) is not None]
+        return BatchPostsOut(total=total, count=len(items), items=items)
 
     def get_all(self, page: int = 0, page_size: int = 20) -> BatchPostsOut:
-        matched = []
-        for p in self.posts.values():
-            if not p.get("deleted"):
-                post_out = self.get_by_pid(p["pid"])
-                if post_out:
-                    matched.append(post_out)
-        matched.sort(key=lambda x: x.post_content.created_at if x.post_content else datetime.min, reverse=True)
-        start = page * page_size
-        end = start + page_size
-        return BatchPostsOut(total=len(matched), count=len(matched[start:end]), items=matched[start:end])
+        rows = [p for p in self.posts.values() if p.get("deleted_at") is None]
+        rows.sort(key=lambda x: x["_id"], reverse=True)
+        total = len(rows)
+        page_rows = rows[page * page_size: page * page_size + page_size]
+        items = [out for r in page_rows if (out := self._build_post_out(r)) is not None]
+        return BatchPostsOut(total=total, count=len(items), items=items)
+
+    # ========== 改 ==========
 
     def update(self, pid: str, data: PostDto) -> bool:
         post = self.posts.get(pid)
-        if not post or post.get("deleted"):
+        if not post or post.get("deleted_at") is not None:
             return False
+
+        # PATCH 语义：只更新显式传入字段
         if data.visibility is not None:
             post["post_status"].visibility = data.visibility
         if data.publish_status is not None:
@@ -115,198 +167,99 @@ class MockPostRepository:
         return True
 
     def update_content(self, pid: str, data: PostContentUpdate) -> bool:
-        # 这里直接委托给内容仓库；如果你未来希望“真正合并对象”，也可以把内容字典直接放进 MockPostRepository。
-        if not self._content_repo:
-            return False
-        return self._content_repo.update(pid, data)
-
-    def soft_delete(self, pid: str) -> bool:
-        post = self.posts.get(pid)
-        if not post or post.get("deleted"):
-            return False
-        post["deleted"] = True
-        return True
-
-    def hard_delete(self, pid: str) -> bool:
-        if pid in self.posts:
-            del self.posts[pid]
-            return True
-        return False
-
-
-class MockPostContentRepository:
-    def __init__(self, post_repo):
-        self.contents: Dict[str, PostContentOut] = {}
-
-        # 下面这个参数其实是没有什么作用的,
-        # 放在这个地方仅仅是为了格式能跟真实的 repo 对象保持一致
-        self.post_repo = post_repo
-
-    def create(self, data: PostContentCreate) -> str:
-        pcid = str(uuid.uuid4())
-        now = datetime.now(timezone(timedelta(hours=8)))
-        content = PostContentOut(
-            pcid=pcid,
-            post_id=data.post_id,
-            title=data.title,
-            content=data.content,
-            created_at=now,
-        )
-        self.contents[data.post_id] = content
-        return pcid
-
-    def get_by_post_id(self, post_id: str) -> Optional[PostContentOut]:
-        return self.contents.get(post_id)
-
-    def update(self, post_id: str, data: PostContentUpdate) -> bool:
-        content = self.contents.get(post_id)
+        content = self.contents.get(pid)
         if not content:
             return False
+
+        # PATCH 语义：只更新显式传入字段
         if data.title is not None:
             content.title = data.title
         if data.content is not None:
             content.content = data.content
         return True
 
+    # ========== 删 ==========
 
-class MockPostStatsRepository:
-    def __init__(self, post_repo, user_repo=None):
-        self.stats: Dict[str, PostStatsDto] = {}
-        self.post_repo = post_repo
-        self.user_repo = user_repo
-
-    def create(self, data: PostStatsCreate) -> str:
-        psid = str(uuid.uuid4())
-        stats_dto = PostStatsDto(
-            like_count=data.post_stats.like_count or 0,
-            comment_count=data.post_stats.comment_count or 0,
-        )
-        self.stats[data.post_id] = stats_dto
-        return psid
-
-    def get_by_post_id(self, post_id: str) -> Optional[PostStatsOut]:
-        stats_dto = self.stats.get(post_id)
-        if not stats_dto:
-            return None
-        return PostStatsOut(
-            psid=str(uuid.uuid4()),
-            post_id=post_id,
-            post_stats=stats_dto,
-        )
-
-    def update(self, post_id: str, data: PostStatsDto, delta: int = 1) -> bool:
-        stats_dto = self.stats.get(post_id)
-        if not stats_dto:
+    def soft_delete(self, pid: str) -> bool:
+        post = self.posts.get(pid)
+        if not post or post.get("deleted_at") is not None:
             return False
-        if data.like_count is not None:
-            stats_dto.like_count = max(0, (stats_dto.like_count or 0) + delta)
-        if data.comment_count is not None:
-            stats_dto.comment_count = max(0, (stats_dto.comment_count or 0) + delta)
+        post["deleted_at"] = self._now()
         return True
 
-    def get_top_liked(self, limit: int = 10) -> BatchPostStatsOut:
-        """返回按 like_count 排序的 PostStatsOut 列表（只含 stats，不含 post 信息）。"""
-        items: List[PostStatsOut] = []
-        for post_id, stats_dto in self.stats.items():
-            if self.post_repo.posts.get(post_id, {}).get("deleted"):
-                continue
-            items.append(PostStatsOut(psid=str(uuid.uuid4()), post_id=post_id, post_stats=stats_dto))
-        items.sort(key=lambda x: x.post_stats.like_count or 0, reverse=True)
-        top = items[:limit]
-        return BatchPostStatsOut(total=len(items), count=len(top), items=top)
+    def hard_delete(self, pid: str) -> bool:
+        if pid not in self.posts:
+            return False
 
-    def get_top_commented(self, limit: int = 10) -> BatchPostStatsOut:
-        """返回按 comment_count 排序的 PostStatsOut 列表（只含 stats，不含 post 信息）。"""
-        items: List[PostStatsOut] = []
-        for post_id, stats_dto in self.stats.items():
-            if self.post_repo.posts.get(post_id, {}).get("deleted"):
-                continue
-            items.append(PostStatsOut(psid=str(uuid.uuid4()), post_id=post_id, post_stats=stats_dto))
-        items.sort(key=lambda x: x.post_stats.comment_count or 0, reverse=True)
-        top = items[:limit]
-        return BatchPostStatsOut(total=len(items), count=len(top), items=top)
+        # 这里模拟 ORM 的 cascade：硬删 post 时连同 content/stats 一并清理。
+        del self.posts[pid]
+        self.contents.pop(pid, None)
+        self.stats.pop(pid, None)
+        return True
 
-    def get_top_liked_with_posts(self, limit: int = 10) -> list:
-        cutoff = datetime.now(timezone(timedelta(hours=8))) - timedelta(days=7)
+    # ========== 查（热榜） ==========
+
+    def _get_author_out(self, uid: str) -> TopPostAuthorOut:
+        username = "unknown"
+        avatar_url = None
+        if self._user_repo is not None:
+            user = self._user_repo.find_user(uid=uid)
+            if user is not None:
+                username = user.user_info.username
+                avatar_url = getattr(user.user_info, "avatar_url", None)
+        return TopPostAuthorOut(uid=uid, username=username, avatar_url=avatar_url)
+
+    def get_top_liked_with_posts(self, limit: int = 10) -> List[TopPostOut]:
+        cutoff = self._now() - timedelta(days=7)
         matched = []
-        for post_id, stats_dto in self.stats.items():
-            post = self.post_repo.posts.get(post_id)
-            if not post or post.get("deleted"):
+        for pid, stats_dto in self.stats.items():
+            post = self.posts.get(pid)
+            if not post or post.get("deleted_at") is not None:
                 continue
-            content = self.post_repo._content_repo.get_by_post_id(post_id) if self.post_repo._content_repo else None
+            content = self.contents.get(pid)
             if not content or content.created_at < cutoff:
                 continue
+            like_count = stats_dto.like_count or 0
+            matched.append((like_count, post["_id"], pid, content.title, post["author_id"], stats_dto))
 
-            author_id = post["author_id"]
-            username = "unknown"
-            if self.user_repo is not None:
-                user = self.user_repo.find_user(uid=author_id)
-                if user:
-                    username = user.user_info.username
-            matched.append((post_id, stats_dto.like_count or 0, content.title, author_id, username, stats_dto))
+        # 对齐 SQLAlchemy repo 的排序策略：主键按计数倒序，次键用“更靠后写入”作为稳定排序。
+        matched.sort(key=lambda x: (x[0], x[1]), reverse=True)
 
-        matched.sort(key=lambda x: x[1], reverse=True)
         items: List[TopPostOut] = []
-        for post_id, _, title, author_id, username, stats_dto in matched[:limit]:
+        for _, _, pid, title, author_id, stats_dto in matched[:limit]:
             items.append(
                 TopPostOut(
-                    pid=post_id,
+                    pid=pid,
                     title=title,
-                    author=TopPostAuthorOut(uid=author_id, username=username),
+                    author=self._get_author_out(author_id),
                     post_stats=stats_dto,
                 )
             )
         return items
 
-    def get_top_commented_with_posts(self, limit: int = 10) -> list:
-        cutoff = datetime.now(timezone(timedelta(hours=8))) - timedelta(days=7)
+    def get_top_commented_with_posts(self, limit: int = 10) -> List[TopPostOut]:
+        cutoff = self._now() - timedelta(days=7)
         matched = []
-        for post_id, stats_dto in self.stats.items():
-            post = self.post_repo.posts.get(post_id)
-            if not post or post.get("deleted"):
+        for pid, stats_dto in self.stats.items():
+            post = self.posts.get(pid)
+            if not post or post.get("deleted_at") is not None:
                 continue
-            content = self.post_repo._content_repo.get_by_post_id(post_id) if self.post_repo._content_repo else None
+            content = self.contents.get(pid)
             if not content or content.created_at < cutoff:
                 continue
+            comment_count = stats_dto.comment_count or 0
+            matched.append((comment_count, post["_id"], pid, content.title, post["author_id"], stats_dto))
 
-            author_id = post["author_id"]
-            username = "unknown"
-            if self.user_repo is not None:
-                user = self.user_repo.find_user(uid=author_id)
-                if user:
-                    username = user.user_info.username
-            matched.append((post_id, stats_dto.comment_count or 0, content.title, author_id, username, stats_dto))
+        matched.sort(key=lambda x: (x[0], x[1]), reverse=True)
 
-        matched.sort(key=lambda x: x[1], reverse=True)
         items: List[TopPostOut] = []
-        for post_id, _, title, author_id, username, stats_dto in matched[:limit]:
+        for _, _, pid, title, author_id, stats_dto in matched[:limit]:
             items.append(
                 TopPostOut(
-                    pid=post_id,
+                    pid=pid,
                     title=title,
-                    author=TopPostAuthorOut(uid=author_id, username=username),
+                    author=self._get_author_out(author_id),
                     post_stats=stats_dto,
                 )
             )
         return items
-
-
-# 为了让“聚合仓储”对外只暴露一个对象，我们把热榜方法也挂到 MockPostRepository 上。
-# 这和真实 SQLAlchemyPostRepository 的升级方向一致。
-def _mock_repo_get_top_liked_with_posts(self: MockPostRepository, limit: int = 10) -> list:
-    if not self._stats_repo:
-        return []
-    return self._stats_repo.get_top_liked_with_posts(limit)
-
-
-def _mock_repo_get_top_commented_with_posts(self: MockPostRepository, limit: int = 10) -> list:
-    if not self._stats_repo:
-        return []
-    return self._stats_repo.get_top_commented_with_posts(limit)
-
-
-# 动态挂载方法（Python 的函数是一等公民，这是一个教学点）：
-# - 这里用“函数赋值”的方式给类补方法，避免大段复制粘贴。
-# - 真实项目里一般不建议这么做（可读性差），但作为教学示例可以帮助理解“对象本质上是可变的”。
-MockPostRepository.get_top_liked_with_posts = _mock_repo_get_top_liked_with_posts
-MockPostRepository.get_top_commented_with_posts = _mock_repo_get_top_commented_with_posts

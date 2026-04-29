@@ -7,8 +7,6 @@ from app.service.v2.post_svc import PostService
 
 from app.storage.v2.mock.mock_post import (
     MockPostRepository,
-    MockPostContentRepository,
-    MockPostStatsRepository,
 )
 from app.storage.v2.mock.mock_user import MockUserRepository
 from app.schemas.v2.user import UserCreate
@@ -17,7 +15,11 @@ from app.schemas.v2.user import UserCreate
 @pytest.fixture
 def app():
     """ 
-    这个函数会初始化 Post、Content、Stats 三个 Mock 仓库, 通过基于内存实现的简化仓库, 替换真实的存储层
+    这个函数会初始化 v2 的 Mock 仓库（内存实现），替换真实的存储层。
+
+    说明：这里的帖子仓储采用“聚合仓储”风格：
+    - 物理上可能是 `posts/post_contents/post_stats` 三表
+    - 但对上层只暴露一个 `MockPostRepository`，把多表细节隐藏在对象内部
 
     补充说明:
         1. 这个函数顶部的 @pytest.fixture 是一个装饰器
@@ -25,17 +27,15 @@ def app():
         3. 每个测试用例执行前，app fixture 会重新运行。意味着每个 test_ 函数拿到的都是一套干净、空内存仓库，保证了测试用例之间的互不干扰
     """
 
-    # 由于没有数据库, 我们都把数据写在了内存里面，但是以下的 mock 仓库接口满足 IPostRepository, IPostContentRepository, IPostStatsRepository 协议约束
-    # 虽然没有显式继承, 但是Python 采用了鸭子类型, 只要满足协议约束就是一个符合该协议的类型。
+    # 由于没有数据库, 我们都把数据写在了内存里面：
+    # - 此处的 `post_repo` 是一个“聚合仓库”, 数据表拆成了三份, 但是使用一个数据访问对象屏蔽底层实现细节
+    # - 对外满足 IPostRepository 协议约束, 帖子的内容、统计信息也可以通过这个对象来做查询
+
+    # NOTE: Python “鸭子类型”(Duck Typing)
+    # - 无需显式继承某个父类/接口
+    # - 只要对象提供了协议所需的方法, 即可被当作该协议类型使用
     user_repo = MockUserRepository()
-    post_repo = MockPostRepository()
-
-    content_repo = MockPostContentRepository(post_repo=post_repo)
-    stats_repo = MockPostStatsRepository(post_repo=post_repo, user_repo=user_repo)
-
-    # 调用 psot_repo 里面的方法, 来把帖子表相关的 帖子内容、帖子统计信息联动起来
-    post_repo.set_related_repos(content_repo, stats_repo)
-    content_repo.post_repo = post_repo
+    post_repo = MockPostRepository(user_repo=user_repo)
 
     api = FastAPI()
     # 这里的 app.state 是一个动态属性容器 State, 对它使用 . 成员运算符访问什么属性都不保持, 我们能往里面塞入任何东西
@@ -46,9 +46,9 @@ def app():
     api.include_router(posts_api.posts_router)
 
     def override_post_service() -> PostService:
-        return PostService(post_repo, content_repo, stats_repo, user_repo)
+        return PostService(post_repo, user_repo)
 
-    # 平时 当某个路由 e.g.POST /posts/ 需要 PostService 时，FastAPI 会自动调用 posts_api.get_post_service 这个函数来创建一个连接了真实数据库的服务对象
+    # 平时 当某个路由 e.g. POST /posts/ 需要 PostService 时，FastAPI 会自动调用 posts_api.get_post_service 这个函数来创建一个连接了真实数据库的服务对象
     # 在正常运行的情况之下， FastAPI 在执行每一个请求前，会先去 dependency_overrides 这个字典查询当前这个依赖函数在不在这个字典里面,
     # 若在, 则取出来运行 (执行 key 指向的函数)
     # 下面的 dependency_overrides[posts_api.get_post_service] 本质上就是一个字典

@@ -2,7 +2,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 from app.storage.v2.user.user_repo_sqlalchemy import SQLAlchemyUserRepository
-from app.storage.v2.user_stats.user_stats_repo_sqlalchemy import SQLAlchemyUserStatsRepository
 from app.storage.v2.post.post_repo_sqlalchemy import SQLAlchemyPostRepository
 from app.storage.v1.comment.comment_repo_sqlalchemy import SQLAlchemyCommentRepository
 from app.storage.v1.comment_content.comment_content_repo_sqlalchemy import SQLAlchemyCommentContentRepository
@@ -42,10 +41,6 @@ def get_user_repo(db: Session = Depends(get_db)) -> SQLAlchemyUserRepository:
 
 def get_follow_repo(db: Session = Depends(get_db)) -> SQLAlchemyFollowRepository:
     return SQLAlchemyFollowRepository(db)
-
-
-def get_usersta_repo(db: Session = Depends(get_db)) -> SQLAlchemyUserStatsRepository:
-    return SQLAlchemyUserStatsRepository(db)
 
 
 def get_post_repo(db: Session = Depends(get_db)) -> SQLAlchemyPostRepository:

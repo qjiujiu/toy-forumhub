@@ -2,10 +2,8 @@ import pytest
 
 from app.storage.v2.mock.mock_post import (
     MockPostRepository,
-    MockPostContentRepository,
-    MockPostStatsRepository,
 )
-from app.storage.v2.mock.mock_user import MockUserRepository, MockUserStatsRepository
+from app.storage.v2.mock.mock_user import MockUserRepository
 
 from app.schemas.v2.post import PostCreate, PostUpdate, PostDto
 from app.schemas.v2.post_content import PostContentUpdate
@@ -16,44 +14,23 @@ from app.core.exceptions import PostNotFound, ForbiddenAction, AdminPermissionDe
 
 
 @pytest.fixture
-def post_repo():
-    return MockPostRepository()
-
-
-@pytest.fixture
-def content_repo():
-    return MockPostContentRepository(None)
-
-
-@pytest.fixture
-def stats_repo():
-    return MockPostStatsRepository(None)
-
-
-@pytest.fixture
-def setup_repos(post_repo, content_repo, stats_repo):
-    post_repo.set_related_repos(content_repo, stats_repo)
-    content_repo.post_repo = post_repo
-    stats_repo.post_repo = post_repo
-
-
-@pytest.fixture
 def user_repo():
     return MockUserRepository()
 
 
 @pytest.fixture
-def user_stats_repo(user_repo):
-    return MockUserStatsRepository(user_repo)
+def post_repo(user_repo):
+    # 知识点：SQLAlchemy repo 会 join users 表拿作者信息；mock 通过注入 user_repo 来模拟。
+    return MockPostRepository(user_repo=user_repo)
 
 
 @pytest.fixture
-def post_svc(post_repo, content_repo, stats_repo, user_repo, user_stats_repo, setup_repos):
-    return PostService(post_repo, content_repo, stats_repo, user_repo)
+def post_svc(post_repo, user_repo):
+    return PostService(post_repo, user_repo)
 
 
 class TestPostService:
-    def test_create_post(self, post_svc, post_repo, content_repo, stats_repo, user_repo):
+    def test_create_post(self, post_svc, post_repo, user_repo):
         from app.schemas.v2.user import UserCreate
 
         user_data = UserCreate(username="author", phone="1234567890", password="password")
@@ -74,7 +51,7 @@ class TestPostService:
         assert result.post_stats.like_count == 0
         assert result.post_stats.comment_count == 0
 
-    def test_get_post(self, post_svc, post_repo, content_repo, stats_repo, user_repo):
+    def test_get_post(self, post_svc, post_repo, user_repo):
         from app.schemas.v2.user import UserCreate
 
         user_data = UserCreate(username="author", phone="1234567890", password="password")
@@ -96,7 +73,7 @@ class TestPostService:
         with pytest.raises(PostNotFound):
             post_svc.get_post("invalid_pid")
 
-    def test_get_posts_by_author(self, post_svc, post_repo, content_repo, stats_repo, user_repo):
+    def test_get_posts_by_author(self, post_svc, post_repo, user_repo):
         from app.schemas.v2.user import UserCreate
 
         user_data = UserCreate(username="author", phone="1234567890", password="password")
@@ -115,7 +92,7 @@ class TestPostService:
         assert result.total == 3
         assert result.count == 3
 
-    def test_update_post_content(self, post_svc, post_repo, content_repo, stats_repo, user_repo):
+    def test_update_post_content(self, post_svc, post_repo, user_repo):
         from app.schemas.v2.user import UserCreate
 
         user_data = UserCreate(username="author", phone="1234567890", password="password")
@@ -142,7 +119,7 @@ class TestPostService:
         with pytest.raises(ForbiddenAction):
             post_svc.update_post_content("other_user", created.pid, update_data)
 
-    def test_update_post_visibility(self, post_svc, post_repo, content_repo, stats_repo, user_repo):
+    def test_update_post_visibility(self, post_svc, post_repo, user_repo):
         from app.schemas.v2.user import UserCreate
 
         user_data = UserCreate(username="author", phone="1234567890", password="password")
@@ -162,7 +139,7 @@ class TestPostService:
         result = post_svc.update_post_visibility(author.uid, created.pid, update_data)
         assert result.post_status.visibility == 1
 
-    def test_ban_post(self, post_svc, post_repo, content_repo, stats_repo, user_repo):
+    def test_ban_post(self, post_svc, post_repo, user_repo):
         from app.schemas.v2.user import UserCreate
 
         user_data = UserCreate(username="author", phone="1234567890", password="password")
@@ -187,7 +164,7 @@ class TestPostService:
         with pytest.raises(AdminPermissionDenied):
             post_svc.ban_post(author.uid, created.pid)
 
-    def test_publish_post(self, post_svc, post_repo, content_repo, stats_repo, user_repo):
+    def test_publish_post(self, post_svc, post_repo, user_repo):
         from app.schemas.v2.user import UserCreate
 
         user_data = UserCreate(username="author", phone="1234567890", password="password")
@@ -208,7 +185,7 @@ class TestPostService:
         with pytest.raises(ForbiddenAction):
             post_svc.publish_post("other_user", created.pid)
 
-    def test_soft_delete_post(self, post_svc, post_repo, content_repo, stats_repo, user_repo):
+    def test_soft_delete_post(self, post_svc, post_repo, user_repo):
         from app.schemas.v2.user import UserCreate
 
         user_data = UserCreate(username="author", phone="1234567890", password="password")
@@ -235,7 +212,7 @@ class TestPostService:
         with pytest.raises(PostNotFound):
             post_svc.get_post(created.pid)
 
-    def test_hard_delete_post(self, post_svc, post_repo, content_repo, stats_repo, user_repo):
+    def test_hard_delete_post(self, post_svc, post_repo, user_repo):
         from app.schemas.v2.user import UserCreate
 
         user_data = UserCreate(username="author", phone="1234567890", password="password")
@@ -263,7 +240,7 @@ class TestPostService:
         with pytest.raises(AdminPermissionDenied):
             post_svc.hard_delete_post(author.uid, created.pid)
 
-    def test_get_top_liked_posts(self, post_svc, post_repo, content_repo, stats_repo, user_repo):
+    def test_get_top_liked_posts(self, post_svc, post_repo, user_repo):
         from app.schemas.v2.user import UserCreate
 
         user_data = UserCreate(username="author", phone="1234567890", password="password")
@@ -281,7 +258,7 @@ class TestPostService:
         result = post_svc.get_top_liked_posts(limit=10)
         assert len(result) <= 10
 
-    def test_get_top_commented_posts(self, post_svc, post_repo, content_repo, stats_repo, user_repo):
+    def test_get_top_commented_posts(self, post_svc, post_repo, user_repo):
         from app.schemas.v2.user import UserCreate
 
         user_data = UserCreate(username="author2", phone="2234567890", password="password")

@@ -13,10 +13,8 @@ from app.service.v2.user_svc import UserService
 
 from app.storage.v2.database import (
     get_user_repo,
-    get_usersta_repo
 )
 from app.storage.v2.user.user_interface import IUserRepository
-from app.storage.v2.user_stats.user_stats_interface import IUserStatsRepository
 
 from app.core.exceptions import (
     UserNotFound,
@@ -30,9 +28,8 @@ from app.core.biz_response import BizResponse
 
 def get_user_service(
     user_repo: IUserRepository = Depends(get_user_repo),
-    stats_repo: IUserStatsRepository = Depends(get_usersta_repo),
 ) -> UserService:
-    return UserService(user_repo, stats_repo)
+    return UserService(user_repo)
 
 
 users_router = APIRouter(prefix="/users", tags=["users"])
@@ -322,4 +319,3 @@ def promote_to_moderator(
         return BizResponse(data=None, msg=str(e), status_code=404)
     except Exception as e:
         return BizResponse(data=None, msg=str(e), status_code=500)
-

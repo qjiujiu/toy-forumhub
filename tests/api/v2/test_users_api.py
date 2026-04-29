@@ -6,19 +6,18 @@ from app.api.v2 import users as users_api
 from app.service.v2.user_svc import UserService
 from app.schemas.v2.user import UserCreate, UserUpdate, UserInfoUpdateDto
 
-from app.storage.v2.mock.mock_user import MockUserRepository, MockUserStatsRepository
+from app.storage.v2.mock.mock_user import MockUserRepository
 
 
 @pytest.fixture
 def app():
     user_repo = MockUserRepository()
-    stats_repo = MockUserStatsRepository(user_repo)
 
     api = FastAPI()
     api.include_router(users_api.users_router)
 
     def override_user_service() -> UserService:
-        return UserService(user_repo, stats_repo)
+        return UserService(user_repo)
 
     api.dependency_overrides[users_api.get_user_service] = override_user_service
     return api

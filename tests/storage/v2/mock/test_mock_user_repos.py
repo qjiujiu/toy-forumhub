@@ -7,7 +7,7 @@ from app.schemas.v2.user_dto import UserInfoDto, UserTimeDto, UserUpdateDto
 from app.models.v2.user import UserRole
 from app.schemas.v2.user_stats import UserStatsDto
 
-from app.storage.v2.mock.mock_user import MockUserRepository, MockUserStatsRepository
+from app.storage.v2.mock.mock_user import MockUserRepository
 
 
 class TestMockUserRepository:
@@ -75,39 +75,33 @@ class TestMockUserRepository:
         assert repo.get_password(user.uid) is None
 
 
-class TestMockUserStatsRepository:
-    def test_get_or_create_stats_should_default_zero(self):
-        """意图：get_or_create_stats 在没有记录时创建默认统计（0/0）。"""
-        user_repo = MockUserRepository()
-        stats_repo = MockUserStatsRepository(user_repo)
+class TestMockUserStatsAggregate:
+    def test_get_stats_should_exist_after_create_user(self):
+        """意图：创建用户后，user_stats 应作为聚合不变量存在（默认 0/0）。"""
+        repo = MockUserRepository()
+        user = repo.create_user(UserCreate(username="u", phone="111", password="pw"))
 
-        stats = stats_repo.get_or_create_stats("uid")
+        stats = repo.get_stats(user.uid)
         assert isinstance(stats, UserStatsDto)
         assert stats.following_count == 0
         assert stats.followers_count == 0
 
     def test_update_stats_should_increase_and_not_below_zero(self):
-        """意图：update_stats 支持增量更新，且计数不应被更新到负数。"""
-        user_repo = MockUserRepository()
-        stats_repo = MockUserStatsRepository(user_repo)
+        """意图：聚合仓储的 update_stats 支持增量更新，且计数不应被更新到负数。"""
+        repo = MockUserRepository()
 
-        stats_repo.get_or_create_stats("uid")
-        stats_repo.update_stats("uid", following_step=5, followers_step=10)
-        stats = stats_repo.get_by_user_id("uid")
-        assert stats is not None
+        user = repo.create_user(UserCreate(username="u", phone="111", password="pw"))
+        repo.update_stats(user.uid, following_step=5, followers_step=10)
+        stats = repo.get_stats(user.uid)
         assert stats.following_count == 5
         assert stats.followers_count == 10
 
-        stats_repo.update_stats("uid", following_step=-100, followers_step=-100)
-        stats2 = stats_repo.get_by_user_id("uid")
-        assert stats2 is not None
+        repo.update_stats(user.uid, following_step=-100, followers_step=-100)
+        stats2 = repo.get_stats(user.uid)
         assert stats2.following_count == 0
         assert stats2.followers_count == 0
 
-    def test_find_stats_with_user_should_return_none_when_user_missing(self):
-        """意图：with_user=True 时，如果用户不存在，应返回 None。"""
-        user_repo = MockUserRepository()
-        stats_repo = MockUserStatsRepository(user_repo)
-        stats_repo.get_or_create_stats("uid")
-
-        assert stats_repo.find_stats("uid", with_user=True) is None
+    def test_get_user_profile_should_return_none_when_user_missing(self):
+        """意图：用户不存在时，get_user_profile 应返回 None。"""
+        repo = MockUserRepository()
+        assert repo.get_user_profile("uid") is None

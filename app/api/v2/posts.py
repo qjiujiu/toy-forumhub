@@ -6,13 +6,9 @@ from app.service.v2.post_svc import PostService
 
 from app.storage.v2.database import (
     get_post_repo,
-    get_postcon_repo,
-    get_poststats_repo,
     get_user_repo,
 )
 from app.storage.v2.post.post_interface import IPostRepository
-from app.storage.v2.post_content.post_content_interface import IPostContentRepository
-from app.storage.v2.post_stats.post_stats_interface import IPostStatsRepository
 from app.storage.v2.user.user_interface import IUserRepository
 
 from app.core.exceptions import PostNotFound, ForbiddenAction, AdminPermissionDenied
@@ -23,11 +19,9 @@ from app.core.biz_response import BizResponse
 
 def get_post_service(
     post_repo: IPostRepository = Depends(get_post_repo),
-    content_repo: IPostContentRepository = Depends(get_postcon_repo),
-    stats_repo: IPostStatsRepository = Depends(get_poststats_repo),
     user_repo: IUserRepository = Depends(get_user_repo),
 ) -> PostService:
-    return PostService(post_repo, content_repo, stats_repo, user_repo)
+    return PostService(post_repo, user_repo)
 
 
 posts_router = APIRouter(prefix="/posts", tags=["posts"])

@@ -1,6 +1,9 @@
-from typing import Optional
-from datetime import datetime, timezone, timedelta
 
+from app.core.logx import logger
+from app.core.exceptions import UserNotFound, PasswordMismatchError, AdminPermissionDenied
+from app.core.security import hash_password, verify_password
+from app.storage.v2.user.user_interface import IUserRepository
+from app.schemas.v2.user_stats import UserStatsWithUserOut
 from app.schemas.v2.user import (
     UserCreate,
     UserUpdate,
@@ -13,20 +16,16 @@ from app.schemas.v2.user import (
     UserStatus,
     UserRole,
 )
-from app.schemas.v2.user_stats import UserStatsWithUserOut
 
-from app.storage.v2.user.user_interface import IUserRepository
-from app.storage.v2.user_stats.user_stats_interface import IUserStatsRepository
-
-from app.core.logx import logger
-from app.core.exceptions import UserNotFound, PasswordMismatchError, AdminPermissionDenied
-from app.core.security import hash_password, verify_password
+from typing import Optional
+from datetime import datetime, timezone, timedelta
 
 
 class UserService:
-    def __init__(self, user_repo: IUserRepository, stats_repo: IUserStatsRepository):
+    def __init__(self, user_repo: IUserRepository):
+        # UserService 只依赖一个 UserRepository（聚合仓储）。
+        # 用户统计信息（user_stats）虽然是独立表，但访问细节应由 repo 层屏蔽。
         self._user_repo = user_repo
-        self._stats_repo = stats_repo
 
     def _get_user_or_raise(self, uid: str) -> UserOut:
         user = self._user_repo.find_user(uid=uid)
@@ -48,9 +47,6 @@ class UserService:
 
         new_user = self._user_repo.create_user(user_data)
         logger.info(f"[CREATE_USER] Created user uid={new_user.uid}")
-
-        self._stats_repo.get_or_create_stats(new_user.uid)
-        logger.info(f"[CREATE_USER] Initialized statistics for user uid={new_user.uid}")
 
         return new_user
 
@@ -87,7 +83,7 @@ class UserService:
         self,
         uid: str,
     ) -> UserStatsWithUserOut:
-        profile = self._stats_repo.find_stats(uid, with_user=True)
+        profile = self._user_repo.get_user_profile(uid)
         if not profile:
             raise UserNotFound(f"user {uid} not found")
         return profile
