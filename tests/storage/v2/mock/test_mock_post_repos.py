@@ -19,7 +19,8 @@ class TestMockPostRepository:
         user_repo = MockUserRepository()
         post_repo = MockPostRepository(user_repo=user_repo)
 
-        author = user_repo.create_user(UserCreate(username="author", phone="111", password="pw"))
+        user_data = UserCreate(username="author", phone="111", password="pw")
+        author = user_repo.create_user(username=user_data.username, phone=user_data.phone, hashed_password=user_data.password)
         created = post_repo.create_post(
             PostCreate(author_id=author.uid, title="t", content="c", post_status=PostDto(publish_status=0))
         )

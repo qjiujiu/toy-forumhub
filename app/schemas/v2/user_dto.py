@@ -27,14 +27,6 @@ class UserTimeDto(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
-class UserUpdateDto(BaseModel):
-    password: Optional[str] = None
-    user_info: Optional[UserInfoDto] = None
-    user_data: Optional[UserTimeDto] = None
-
-    model_config = ConfigDict(from_attributes=True, extra="forbid")
-
-
 class UserOut(BaseModel):
     """用户对外/跨层传输 DTO（不包含敏感字段的聚合结构）"""
 

@@ -1,0 +1,34 @@
+[
+  {
+    "_id": 1,
+    "pid": "post_clean_arch_58ddd922-6497-4a08-a20c-b11d1dc8ed44",
+    "author_id": "usr_alice_76306a74-82e4-4939-9203-b8fd83068db8",
+    "visibility": 0,
+    "publish_status": 1,
+    "deleted_at": null
+  },
+  {
+    "_id": 2,
+    "pid": "post_cqrs_draft_e05bca46-2796-49b5-806b-80d54e51612f",
+    "author_id": "usr_bob_e7f3c66b-b72b-4c5c-ade1-aa6e72d22abb",
+    "visibility": 0,
+    "publish_status": 0,
+    "deleted_at": null
+  },
+  {
+    "_id": 3,
+    "pid": "post_private_bug_70ec3e44-c000-489e-ae5f-253fed86fd55",
+    "author_id": "usr_bob_e7f3c66b-b72b-4c5c-ade1-aa6e72d22abb",
+    "visibility": 1,
+    "publish_status": 2,
+    "deleted_at": null
+  },
+  {
+    "_id": 4,
+    "pid": "post_deleted_refactor_c50a6e38-17b4-46ab-ab19-8bad1b032270",
+    "author_id": "usr_alice_76306a74-82e4-4939-9203-b8fd83068db8",
+    "visibility": 0,
+    "publish_status": 1,
+    "deleted_at": "2026-04-15T12:00:00+08:00"
+  }
+]

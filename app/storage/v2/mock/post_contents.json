@@ -1,0 +1,38 @@
+[
+  {
+    "_id": 1,
+    "pcid": "pc_clean_arch_cf3bd92a-1b1b-4b2e-85d6-6596f700cd9d",
+    "post_id": "post_clean_arch_58ddd922-6497-4a08-a20c-b11d1dc8ed44",
+    "title": "为什么 service 层不应该依赖 req schema？",
+    "content": "重构 create_user：service 接收 primitives，API 层负责 schema 校验与解包。",
+    "created_at": "2026-04-10T09:00:00+08:00",
+    "updated_at": "2026-04-28T09:00:00+08:00"
+  },
+  {
+    "_id": 2,
+    "pcid": "pc_cqrs_draft_32447bf8-230f-4e62-b518-b85ce28604ac",
+    "post_id": "post_cqrs_draft_e05bca46-2796-49b5-806b-80d54e51612f",
+    "title": "草稿：我们要不要引入 CQRS？",
+    "content": "列出优缺点：读写分离、复杂度提升、团队学习成本...",
+    "created_at": "2026-04-20T14:20:00+08:00",
+    "updated_at": "2026-04-20T14:20:00+08:00"
+  },
+  {
+    "_id": 3,
+    "pcid": "pc_private_bug_c7e79b19-2f0f-4f56-9ddd-9bc64467d2c1",
+    "post_id": "post_private_bug_70ec3e44-c000-489e-ae5f-253fed86fd55",
+    "title": "仅作者可见：排查线上 bug 的过程记录",
+    "content": "包含敏感信息，仅作者可见。记录复现步骤与临时修复方案。",
+    "created_at": "2026-04-18T22:10:00+08:00",
+    "updated_at": "2026-04-19T08:30:00+08:00"
+  },
+  {
+    "_id": 4,
+    "pcid": "pc_deleted_refactor_dc1f808e-a8b8-45c2-89c1-1c1ad726f503",
+    "post_id": "post_deleted_refactor_c50a6e38-17b4-46ab-ab19-8bad1b032270",
+    "title": "已删除：一次失败的重构尝试",
+    "content": "踩坑记录：过早抽象导致接口泛化，阅读成本上升。",
+    "created_at": "2026-04-12T11:00:00+08:00",
+    "updated_at": "2026-04-15T12:00:00+08:00"
+  }
+]

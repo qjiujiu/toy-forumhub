@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends
-
 from app.schemas.v2.user import (
     UserCreate,
     UserUpdate,
@@ -10,29 +9,22 @@ from app.schemas.v2.user import (
 )
 from app.schemas.v2.user_stats import UserStatsWithUserOut
 from app.service.v2.user_svc import UserService
-
-from app.storage.v2.database import (
-    get_user_repo,
-)
+from app.storage.v2.database import get_user_repo
 from app.storage.v2.user.user_interface import IUserRepository
-
+from app.core.logx import logger
+from app.core.biz_response import BizResponse
 from app.core.exceptions import (
     UserNotFound,
     PasswordMismatchError,
     AdminPermissionDenied
 )
 
-from app.core.logx import logger
-from app.core.biz_response import BizResponse
-
-
-def get_user_service(
-    user_repo: IUserRepository = Depends(get_user_repo),
-) -> UserService:
-    return UserService(user_repo)
-
 
 users_router = APIRouter(prefix="/users", tags=["users"])
+
+
+def get_user_service(user_repo: IUserRepository = Depends(get_user_repo)) -> UserService:
+    return UserService(user_repo)
 
 
 @users_router.post("/", response_model=UserOut)
@@ -47,12 +39,12 @@ def create_user(
     """
     try:
         new_user = user_service.create_user(
-            user_data=user,
+            username=user.username, phone=user.phone, password=user.password,
         )
         return BizResponse(data=new_user)
     except Exception as e:
         return BizResponse(data=None, msg=str(e), status_code=500)
-    
+
 
 @users_router.get("/", response_model=BatchUsersOut)
 def query_batch_users(
@@ -167,10 +159,7 @@ def change_password(
     """
     logger.debug("ok")
     try:
-        ok = user_service.change_password(
-            uid=uid,
-            data=body,
-        )
+        ok = user_service.change_password(uid=uid, data=body)
         if not ok:
             return BizResponse(data=False, msg="change password failed", status_code=400)
         return BizResponse(data=True)
@@ -199,7 +188,7 @@ def soft_delete_user(
         return BizResponse(data=None, msg=str(e), status_code=404)
     except Exception as e:
         return BizResponse(data=False, msg=str(e), status_code=500)
-    
+
 
 @users_router.delete("/hard")
 def hard_deleted_user(
@@ -223,7 +212,7 @@ def hard_deleted_user(
         return BizResponse(data=None, msg=str(e), status_code=404)
     except Exception as e:
         return BizResponse(data=False, msg=str(e), status_code=500)
-    
+
 
 @users_router.put("/admin/ban", response_model=UserOut)
 def ban_user(

@@ -7,13 +7,17 @@
 """
 
 from app.models.v2.user import UserRole, UserStatus
-from app.schemas.v2.user_dto import UserInfoDto, UserTimeDto, UserUpdateDto, UserOut, BatchUsersOut
+from app.schemas.v2.user_dto import UserInfoDto, UserTimeDto, UserOut, BatchUsersOut
 from app.schemas.v2.user_req import (
     UserCreate,
     UserUpdate,
     UserPasswordUpdate,
     AdminOperation,
     UserInfoUpdateDto,
+    UserInfoPatch,
+    UserAdminPatch,
+    UserPasswordPatch,
+    UserPatch,
 )
 
 
@@ -22,12 +26,15 @@ __all__ = [
     "UserStatus",
     "UserInfoDto",
     "UserTimeDto",
-    "UserUpdateDto",
     "UserCreate",
     "UserUpdate",
     "UserPasswordUpdate",
     "AdminOperation",
     "UserInfoUpdateDto",
+    "UserInfoPatch",
+    "UserAdminPatch",
+    "UserPasswordPatch",
+    "UserPatch",
     "UserOut",
     "BatchUsersOut",
 ]

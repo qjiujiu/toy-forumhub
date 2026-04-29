@@ -1,19 +1,18 @@
 from typing import Optional
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
+from app.core.db import transaction
+from app.storage.v2.user.user_interface import IUserRepository
 from app.models.v2.user import User, UserRole, UserStatus
 from app.models.v2.user_stats import UserStats
+from app.schemas.v2.user_req import UserPatch, UserInfoPatch, UserAdminPatch, UserPasswordPatch
+from app.schemas.v2.user_stats import UserStatsDto, UserStatsWithUserOut
 from app.schemas.v2.user import (
     UserInfoDto,
     UserTimeDto,
-    UserCreate,
     UserOut,
     BatchUsersOut,
-    UserUpdateDto,
 )
-from app.schemas.v2.user_stats import UserStatsDto, UserStatsWithUserOut
-from app.storage.v2.user.user_interface import IUserRepository
-from app.core.db import transaction
 
 
 def _to_user_out(user: User) -> UserOut:
@@ -22,38 +21,6 @@ def _to_user_out(user: User) -> UserOut:
         user_info=UserInfoDto.model_validate(user),
         user_data=UserTimeDto.model_validate(user),
     )
-
-
-def _apply_nested_dto(user, dto, field_names: list, now: datetime = None):
-    # 仅应用“显式传入”的字段：
-    # - 支持把字段置为 None（清空）
-    # - 避免 DTO 默认值（None）导致意外覆盖
-    fields_set = getattr(dto, "model_fields_set", None)
-    for field in field_names:
-        if fields_set is not None and field not in fields_set:
-            continue
-        setattr(user, field, getattr(dto, field))
-
-
-def _apply_user_update(user: User, update_dto: UserUpdateDto, now: datetime):
-    if update_dto.user_info is not None:
-        _apply_nested_dto(user, update_dto.user_info, ["username", "phone", "email", "avatar_url", "bio", "role", "status"])
-
-    if update_dto.user_data is not None:
-        # 时间字段只允许显式更新（例如软删除时设置 deleted_at）。
-        # created_at/last_login_at 不应在普通 update 中被自动覆盖。
-        _apply_nested_dto(user, update_dto.user_data, ["last_login_at", "created_at", "updated_at", "deleted_at"])
-
-    if update_dto.password is not None:
-        user.password = update_dto.password
-
-    # 统一维护 updated_at（除非显式传入 updated_at）
-    if update_dto.user_data is None:
-        user.updated_at = now
-    else:
-        fields_set = getattr(update_dto.user_data, "model_fields_set", set())
-        if "updated_at" not in fields_set:
-            user.updated_at = now
 
 
 class SQLAlchemyUserRepository(IUserRepository):
@@ -96,7 +63,7 @@ class SQLAlchemyUserRepository(IUserRepository):
             users=users_out,
         )
 
-    def create_user(self, user_data: UserCreate) -> UserOut:
+    def create_user(self, username: str, phone: str, hashed_password: str) -> UserOut:
         """创建用户聚合：一次事务内写入 users + user_stats。
 
         物理存储仍然是两张表：
@@ -112,9 +79,9 @@ class SQLAlchemyUserRepository(IUserRepository):
         """
 
         user = User(
-            username=user_data.username,
-            phone=user_data.phone,
-            password=user_data.password,
+            username=username,
+            phone=phone,
+            password=hashed_password,
             role=UserRole.NORMAL_USER.value,
             status=UserStatus.NORMAL.value,
         )
@@ -129,15 +96,17 @@ class SQLAlchemyUserRepository(IUserRepository):
         self.db.refresh(user)
         return _to_user_out(user)
 
-    def update_user(self, uid: str, update_dto: UserUpdateDto) -> Optional[UserOut]:
-        user = self._base_query().filter(User.uid == uid).first()
-        if not user:
-            return None
+    # 通用更新入口（CRUD + 通用 update
+    def update_user(self, uid: str, patch: UserPatch) -> Optional[UserOut]:
+        user = self.db.query(User).filter(User.uid == uid, User.deleted_at.is_(None)).first()
+        if not user: return None
 
-        now = datetime.now(timezone(timedelta(hours=8)))
+        update_data = patch.model_dump(exclude_unset=True)
         with transaction(self.db):
-            _apply_user_update(user, update_dto, now)
+            for field, value in update_data.items():
+                setattr(user, field, value)
 
+            user.updated_at = datetime.now(timezone(timedelta(hours=8)))
         self.db.refresh(user)
         return _to_user_out(user)
 
@@ -153,7 +122,7 @@ class SQLAlchemyUserRepository(IUserRepository):
         user = self._base_query().filter(User.uid == uid).first()
         return user.password if user else None
 
-    # ===================== 聚合能力：user_stats =====================
+    # 聚合能力：user_stats
     def _get_stats_orm(self, user_id: str) -> Optional[UserStats]:
         return self.db.query(UserStats).filter(UserStats.user_id == user_id).first()
 
@@ -203,10 +172,9 @@ class SQLAlchemyUserRepository(IUserRepository):
 
     def get_user_profile(self, user_id: str) -> Optional[UserStatsWithUserOut]:
         """用户详情：UserOut + UserStatsDto。
-
-        知识点：为什么 profile 由 UserRepository 负责？
-        - 这是“聚合仓储”的体现：上层不关心 user_stats 表怎么查/是否存在。
-        - repo 内部可以选择 join、lazy load、缓存等不同策略，而不影响业务层。
+        profile 是由 UserRepository 负责, 因为
+            - 上层不关心 user_stats 数据表怎么查/是否存在。
+            - repo 内部可以选择 join、lazy load、缓存等不同策略，而不影响业务层。
         """
 
         user = self._base_query().filter(User.uid == user_id).first()

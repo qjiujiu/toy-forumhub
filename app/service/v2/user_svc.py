@@ -1,27 +1,46 @@
-
 from app.core.logx import logger
 from app.core.exceptions import UserNotFound, PasswordMismatchError, AdminPermissionDenied
 from app.core.security import hash_password, verify_password
 from app.storage.v2.user.user_interface import IUserRepository
 from app.schemas.v2.user_stats import UserStatsWithUserOut
 from app.schemas.v2.user import (
-    UserCreate,
     UserUpdate,
     UserOut,
     BatchUsersOut,
     UserPasswordUpdate,
-    UserUpdateDto,
-    UserInfoDto,
-    UserTimeDto,
     UserStatus,
     UserRole,
 )
+
+from app.schemas.v2.user_req import UserInfoPatch, UserAdminPatch, UserPasswordPatch
 
 from typing import Optional
 from datetime import datetime, timezone, timedelta
 
 
 class UserService:
+    """ v2 UserService
+    本模块刻意强调“分层边界”一种取舍：
+
+    1) repo 尽可能保持“原始 CRUD + 一个通用 update”
+    - repo 负责把数据写进数据库, 以及维护多表写入一致性，例如 create_user 创建一个用户基本信息的时候回创建用户关注与粉丝信息 (user_stats)
+    - 用户字段更新，repo 对外只暴露 `update_user(uid, patch)`，语义更接近“数据访问层”。
+
+    2) service 承担“按意图的更新 API”（用例编排）
+    - `update_user`（普通资料更新）、`change_password`（重置密码）、`soft_delete_user`（软删）、
+    `ban_user_by_uid/frozen_user_by_uid`（封禁/冻结）、`user_to_admin/user_to_moderator`（角色变更）。
+    - service 负责鉴权、状态机、日志等业务流程；并把“这次更新要改哪些字段”组装成 patch。
+
+    3) 为什么 patch 需要区分 UserInfoPatch/UserAdminPatch/UserPasswordPatch 类型？
+    - 如果 repo 的 update 接收一个无边界 dict/万能 DTO，普通更新很容易误改敏感字段（role/status/password/deleted_at）。
+    - 区分 patch 类型相当于把“字段边界”写进类型系统，减少误用；也是一种教学用的防线。
+
+    4) NOTE 这种设计的利弊 
+    - 好处：repo 更像纯数据层，接口更稳定；新增业务意图动作通常只改 service, 无需往下逐层修改。
+    - 代价：约束更依赖 service；如果将来有其它调用方绕过 service 直接使用 repo.update_user, 仍可能写出越权/不一致数据, 
+    因此, 要么保证未来的所有写入口全部经过 service , 要么就在 repo/update 继续加上更强约束/审计; 我们建议采用前者。
+    """
+
     def __init__(self, user_repo: IUserRepository):
         # UserService 只依赖一个 UserRepository（聚合仓储）。
         # 用户统计信息（user_stats）虽然是独立表，但访问细节应由 repo 层屏蔽。
@@ -40,14 +59,14 @@ class UserService:
         if user.user_info.role != UserRole.ADMIN:
             raise AdminPermissionDenied(f"User {admin_uid} is not an admin")
 
-    def create_user(self, user_data: UserCreate) -> UserOut:
-        # 避免在 service 层直接“就地修改”入参对象，减少副作用
-        if user_data.password:
-            user_data = user_data.model_copy(update={"password": hash_password(user_data.password)})
+    def create_user(self, username: str, phone: str, password: str) -> UserOut:
+        new_user = self._user_repo.create_user(
+            username=username,
+            phone=phone,
+            hashed_password=hash_password(password)
+        )
 
-        new_user = self._user_repo.create_user(user_data)
         logger.info(f"[CREATE_USER] Created user uid={new_user.uid}")
-
         return new_user
 
     def get_batch_users(
@@ -93,14 +112,8 @@ class UserService:
         uid: str,
         data: UserUpdate,
     ) -> Optional[UserOut]:
-        # 普通更新入参不允许包含 role/status；schema 已裁剪字段，这里仅做字段透传
-        update_dto = UserUpdateDto(
-            user_info=UserInfoDto(**data.user_info.model_dump(exclude_unset=True))
-        )
-        updated = self._user_repo.update_user(uid, update_dto)
-        if not updated:
-            return None
-        return updated
+        patch = UserInfoPatch(**data.user_info.model_dump(exclude_unset=True))
+        return self._user_repo.update_user(uid, patch)
 
     def change_password(self, uid: str, data: UserPasswordUpdate) -> bool:
         stored_password = self._user_repo.get_password(uid)
@@ -110,57 +123,52 @@ class UserService:
             raise PasswordMismatchError()
 
         if data.new_password:
-            update_dto = UserUpdateDto(password=hash_password(data.new_password))
-            self._user_repo.update_user(uid, update_dto)
+            patch = UserPasswordPatch(password=hash_password(data.new_password))
+            is_updated = self._user_repo.update_user(uid, patch)
+            if not is_updated:
+                # 正常情况下不应发生：上面已经通过 get_password 校验了用户存在。
+                raise UserNotFound(f"user {uid} not found")
         return True
 
     def soft_delete_user(self, uid: str) -> bool:
         now = datetime.now(timezone(timedelta(hours=8)))
-        update_dto = UserUpdateDto(user_data=UserTimeDto(deleted_at=now))
-        result = self._user_repo.update_user(uid, update_dto)
-        if result:
+        patch = UserAdminPatch(deleted_at=now)
+        is_updated = self._user_repo.update_user(uid, patch)
+        if is_updated:
             logger.info(f"[SOFT_DELETE] Soft deleted user uid={uid}")
-        return result is not None
+        return is_updated is not None
 
     def hard_delete_user(self, admin_uid: str, user_uid: str) -> bool:
         self._verify_admin(admin_uid)
-        ok = self._user_repo.delete_user(user_uid)
-        if ok:
+        is_ok = self._user_repo.delete_user(user_uid)
+        if is_ok:
             logger.info(f"[HARD_DELETE] Hard deleted user uid={user_uid} by admin {admin_uid}")
-        return ok
+        return is_ok
 
     def ban_user_by_uid(self, admin_uid: str, user_uid: str) -> Optional[UserOut]:
         self._verify_admin(admin_uid)
-        update_dto = UserUpdateDto(user_info=UserInfoDto(status=UserStatus.BANNED))
-        updated = self._user_repo.update_user(user_uid, update_dto)
-        if not updated:
-            return None
-        logger.info(f"[BAN_USER] Banned user uid={user_uid} by admin {admin_uid}")
-        return updated
+        is_updated = self._user_repo.update_user(user_uid, UserAdminPatch(status=UserStatus.BANNED))
+        if is_updated:
+            logger.info(f"[BAN_USER] Banned user uid={user_uid} by admin {admin_uid}")
+        return is_updated
 
     def frozen_user_by_uid(self, admin_uid: str, user_uid: str) -> Optional[UserOut]:
         self._verify_admin(admin_uid)
-        update_dto = UserUpdateDto(user_info=UserInfoDto(status=UserStatus.FROZEN))
-        updated = self._user_repo.update_user(user_uid, update_dto)
-        if not updated:
-            return None
-        logger.info(f"[FROZEN_USER] Frozen user uid={user_uid} by admin {admin_uid}")
-        return updated
+        is_updated = self._user_repo.update_user(user_uid, UserAdminPatch(status=UserStatus.FROZEN))
+        if is_updated:
+            logger.info(f"[FROZEN_USER] Frozen user uid={user_uid} by admin {admin_uid}")
+        return is_updated
 
     def user_to_admin(self, admin_uid: str, user_uid: str) -> Optional[UserOut]:
         self._verify_admin(admin_uid)
-        update_dto = UserUpdateDto(user_info=UserInfoDto(role=UserRole.ADMIN))
-        updated = self._user_repo.update_user(user_uid, update_dto)
-        if not updated:
-            return None
-        logger.info(f"[PROMOTE_ADMIN] Promoted user {user_uid} to admin by admin {admin_uid}")
-        return updated
+        is_updated = self._user_repo.update_user(user_uid, UserAdminPatch(role=UserRole.ADMIN))
+        if is_updated:
+            logger.info(f"[PROMOTE_ADMIN] Promoted user {user_uid} to admin by admin {admin_uid}")
+        return is_updated
 
     def user_to_moderator(self, admin_uid: str, user_uid: str) -> Optional[UserOut]:
         self._verify_admin(admin_uid)
-        update_dto = UserUpdateDto(user_info=UserInfoDto(role=UserRole.MODERATOR))
-        updated = self._user_repo.update_user(user_uid, update_dto)
-        if not updated:
-            return None
-        logger.info(f"[PROMOTE_MODERATOR] Promoted user {user_uid} to moderator by admin {admin_uid}")
-        return updated
+        is_updated = self._user_repo.update_user(user_uid, UserAdminPatch(role=UserRole.MODERATOR))
+        if is_updated:
+            logger.info(f"[PROMOTE_MODERATOR] Promoted user {user_uid} to moderator by admin {admin_uid}")
+        return is_updated

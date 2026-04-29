@@ -2,8 +2,9 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Optional
 from app.schemas.v2.user import (
-    UserCreate, UserOut, UserInfoDto, UserTimeDto, BatchUsersOut, UserUpdateDto,
+    UserOut, UserInfoDto, UserTimeDto, BatchUsersOut,
 )
+from app.schemas.v2.user_req import UserPatch, UserInfoPatch, UserAdminPatch, UserPasswordPatch
 from app.schemas.v2.user_stats import UserStatsDto, UserStatsWithUserOut
 from app.models.v2.user import UserRole, UserStatus
 
@@ -55,14 +56,14 @@ class MockUserRepository:
         end = start + page_size
         return BatchUsersOut(total=len(matched), count=len(matched[start:end]), users=matched[start:end])
 
-    def create_user(self, user_data: UserCreate) -> UserOut:
+    def create_user(self, username: str, phone: str, hashed_password: str) -> UserOut:
         uid = str(uuid.uuid4())
         now = datetime.now(timezone(timedelta(hours=8)))
         new_user = UserOut(
             uid=uid,
             user_info=UserInfoDto(
-                username=user_data.username,
-                phone=user_data.phone,
+                username=username,
+                phone=phone,
                 role=UserRole.NORMAL_USER,
                 status=UserStatus.NORMAL,
             ),
@@ -72,52 +73,48 @@ class MockUserRepository:
             ),
         )
         self.users[uid] = new_user
-        self.passwords[uid] = user_data.password
+        self.passwords[uid] = hashed_password
 
         # 创建用户时初始化统计信息（聚合内一致性）。
         # 这里直接写入默认值，而不是通过 get_or_create 做兜底，避免“读路径带写入”的误解。
         self._stats[uid] = UserStatsDto(following_count=0, followers_count=0)
         return new_user
 
-    def update_user(self, uid: str, update_dto: UserUpdateDto) -> Optional[UserOut]:
+    # 通用更新入口（CRUD + 通用 update）
+    def update_user(self, uid: str, patch: UserPatch) -> Optional[UserOut]:
         user = self.users.get(uid)
-        if not user or user.user_data.deleted_at or user.user_info.status != UserStatus.NORMAL:
+        if not user or user.user_data.deleted_at:
             return None
 
-        now = datetime.now(timezone(timedelta(hours=8)))
+        # 现在 update_data 里的枚举会被 model_dump 转成 int（UserAdminPatch.use_enum_values=True）
+        update_data = patch.model_dump(exclude_unset=True)
 
-        if update_dto.user_info is not None:
-            ui = update_dto.user_info
-            if ui.username is not None:
-                user.user_info.username = ui.username
-            if ui.phone is not None:
-                user.user_info.phone = ui.phone
-            if ui.email is not None:
-                user.user_info.email = ui.email
-            if ui.avatar_url is not None:
-                user.user_info.avatar_url = ui.avatar_url
-            if ui.bio is not None:
-                user.user_info.bio = ui.bio
-            if ui.role is not None:
-                user.user_info.role = ui.role
-            if ui.status is not None:
-                user.user_info.status = ui.status
+        for field, value in update_data.items():
+            if field == "password":
+                # mock 仓库把 password 单独存到 passwords 字典里
+                self.passwords[uid] = value
+                continue
 
-        if update_dto.user_data is not None:
-            ud = update_dto.user_data
-            if ud.last_login_at is not None:
-                user.user_data.last_login_at = ud.last_login_at
-            if ud.created_at is not None:
-                user.user_data.created_at = ud.created_at
-            if ud.updated_at is not None:
-                user.user_data.updated_at = ud.updated_at
-            if ud.deleted_at is not None:
-                user.user_data.deleted_at = ud.deleted_at
+            if field == "deleted_at":
+                user.user_data.deleted_at = value
+                continue
 
-        if update_dto.password is not None:
-            self.passwords[uid] = update_dto.password
+            if field == "role":
+                # 对齐 UserOut DTO 的类型：mock 内部仍保存枚举（更贴近业务语义/测试断言）
+                user.user_info.role = UserRole(value) if isinstance(value, int) else value
+                continue
 
-        user.user_data.updated_at = now
+            if field == "status":
+                user.user_info.status = UserStatus(value) if isinstance(value, int) else value
+                continue
+
+            if hasattr(user.user_info, field):
+                setattr(user.user_info, field, value)
+                continue
+
+            raise TypeError(f"unsupported user patch field: {field!r}")
+
+        user.user_data.updated_at = datetime.now(timezone(timedelta(hours=8)))
         return user
 
     def delete_user(self, uid: str) -> bool:

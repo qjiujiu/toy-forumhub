@@ -74,7 +74,8 @@ class TestPostsApiV2:
         # 先在 mock user repo 里面创建作者（当前 service 未强校验 author_id，但这里提前准备，避免后续加校验导致用例失效）
         # client 里面拿出来的 app 就是上面定义的, app.state.user_repo 也是上述 app 里面定义的
         user_repo: MockUserRepository = client.app.state.user_repo
-        author = user_repo.create_user(UserCreate(username="author", phone="111", password="pw"))
+        user_data = UserCreate(username="author", phone="111", password="pw")
+        author = user_repo.create_user(username=user_data.username, phone=user_data.phone, hashed_password=user_data.password)
         payload = {
             "author_id": author.uid,
             "title": "t",
