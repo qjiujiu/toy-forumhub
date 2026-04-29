@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 
 from app.schemas.v2.post import (
     BatchPostsOut,
+    PostCreate,
     PostDto,
     PostOnlyCreate,
     PostOut,
@@ -36,6 +37,26 @@ class MockPostRepository:
             "post_status": status,
         }
         return pid
+
+    def create_post(self, data: PostCreate) -> PostOut:
+        """创建帖子聚合（mock 版）。
+
+        说明：
+        - 真实 SQLAlchemy repo 会在一个事务里写入三表。
+        - mock 版没有数据库，所以用三个内存仓库来模拟三张表。
+        - 关键在于“对外只暴露一个仓储入口”：上层只关心 create_post，而不关心三表细节。
+        """
+        pid = self.create(PostOnlyCreate(author_id=data.author_id, post_status=data.post_status))
+
+        if self._content_repo:
+            self._content_repo.create(PostContentCreate(post_id=pid, title=data.title, content=data.content))
+        if self._stats_repo:
+            self._stats_repo.create(PostStatsCreate(post_id=pid, post_stats=PostStatsDto()))
+
+        out = self.get_by_pid(pid)
+        if not out:
+            raise RuntimeError(f"post {pid} not found after creation")
+        return out
 
     def get_by_pid(self, pid: str) -> Optional[PostOut]:
         post = self.posts.get(pid)
@@ -92,6 +113,12 @@ class MockPostRepository:
         if data.publish_status is not None:
             post["post_status"].publish_status = data.publish_status
         return True
+
+    def update_content(self, pid: str, data: PostContentUpdate) -> bool:
+        # 这里直接委托给内容仓库；如果你未来希望“真正合并对象”，也可以把内容字典直接放进 MockPostRepository。
+        if not self._content_repo:
+            return False
+        return self._content_repo.update(pid, data)
 
     def soft_delete(self, pid: str) -> bool:
         post = self.posts.get(pid)
@@ -262,3 +289,24 @@ class MockPostStatsRepository:
                 )
             )
         return items
+
+
+# 为了让“聚合仓储”对外只暴露一个对象，我们把热榜方法也挂到 MockPostRepository 上。
+# 这和真实 SQLAlchemyPostRepository 的升级方向一致。
+def _mock_repo_get_top_liked_with_posts(self: MockPostRepository, limit: int = 10) -> list:
+    if not self._stats_repo:
+        return []
+    return self._stats_repo.get_top_liked_with_posts(limit)
+
+
+def _mock_repo_get_top_commented_with_posts(self: MockPostRepository, limit: int = 10) -> list:
+    if not self._stats_repo:
+        return []
+    return self._stats_repo.get_top_commented_with_posts(limit)
+
+
+# 动态挂载方法（Python 的函数是一等公民，这是一个教学点）：
+# - 这里用“函数赋值”的方式给类补方法，避免大段复制粘贴。
+# - 真实项目里一般不建议这么做（可读性差），但作为教学示例可以帮助理解“对象本质上是可变的”。
+MockPostRepository.get_top_liked_with_posts = _mock_repo_get_top_liked_with_posts
+MockPostRepository.get_top_commented_with_posts = _mock_repo_get_top_commented_with_posts

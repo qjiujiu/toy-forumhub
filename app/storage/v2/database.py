@@ -4,8 +4,6 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.storage.v2.user.user_repo_sqlalchemy import SQLAlchemyUserRepository
 from app.storage.v2.user_stats.user_stats_repo_sqlalchemy import SQLAlchemyUserStatsRepository
 from app.storage.v2.post.post_repo_sqlalchemy import SQLAlchemyPostRepository
-from app.storage.v2.post_content.post_content_repo_sqlalchemy import SQLAlchemyPostContentRepository
-from app.storage.v2.post_stats.post_stats_repo_sqlalchemy import SQLAlchemyPostStatsRepository
 from app.storage.v1.comment.comment_repo_sqlalchemy import SQLAlchemyCommentRepository
 from app.storage.v1.comment_content.comment_content_repo_sqlalchemy import SQLAlchemyCommentContentRepository
 from app.storage.v1.follow.follow_repo_sqlalchemy import SQLAlchemyFollowRepository
@@ -52,14 +50,6 @@ def get_usersta_repo(db: Session = Depends(get_db)) -> SQLAlchemyUserStatsReposi
 
 def get_post_repo(db: Session = Depends(get_db)) -> SQLAlchemyPostRepository:
     return SQLAlchemyPostRepository(db)
-
-
-def get_postcon_repo(db: Session = Depends(get_db)) -> SQLAlchemyPostContentRepository:
-    return SQLAlchemyPostContentRepository(db)
-
-
-def get_poststats_repo(db: Session = Depends(get_db)) -> SQLAlchemyPostStatsRepository:
-    return SQLAlchemyPostStatsRepository(db)
 
 
 def get_comment_repo(db: Session = Depends(get_db)) -> SQLAlchemyCommentRepository:
