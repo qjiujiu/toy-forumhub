@@ -13,7 +13,7 @@ from app.storage.v2.mock.mock_user import MockUserRepository
 class TestMockUserRepository:
     def test_create_and_find_user_by_uid_should_return_user(self):
         """意图：创建用户后，应能通过 uid 查到同一条用户记录。"""
-        repo = MockUserRepository()
+        repo = MockUserRepository.empty()
         user_data = UserCreate(username="u", phone="111", password="pw")
         user = repo.create_user(username=user_data.username, phone=user_data.phone, hashed_password=user_data.password)
 
@@ -24,7 +24,7 @@ class TestMockUserRepository:
 
     def test_find_user_should_return_none_when_soft_deleted(self):
         """意图：软删除（deleted_at 非空）后，find_user 应返回 None。"""
-        repo = MockUserRepository()
+        repo = MockUserRepository.empty()
         user_data = UserCreate(username="u", phone="111", password="pw")
         user = repo.create_user(username=user_data.username, phone=user_data.phone, hashed_password=user_data.password)
 
@@ -34,7 +34,7 @@ class TestMockUserRepository:
 
     def test_update_user_info_and_reset_password_should_work(self):
         """意图：方向A拆分接口后，信息更新与密码重置都应可用且语义清晰。"""
-        repo = MockUserRepository()
+        repo = MockUserRepository.empty()
         user_data = UserCreate(username="u", phone="111", password="pw")
         user = repo.create_user(username=user_data.username, phone=user_data.phone, hashed_password=user_data.password)
 
@@ -53,7 +53,7 @@ class TestMockUserRepository:
 
     def test_list_users_should_support_username_filter_and_pagination(self):
         """意图：list_users 支持按 username 过滤，并支持分页返回。"""
-        repo = MockUserRepository()
+        repo = MockUserRepository.empty()
         u1 = UserCreate(username="same", phone="111", password="pw")
         u2 = UserCreate(username="same", phone="222", password="pw")
         u3 = UserCreate(username="diff", phone="333", password="pw")
@@ -71,7 +71,7 @@ class TestMockUserRepository:
 
     def test_delete_user_should_remove_user_and_password(self):
         """意图：delete_user 应删除用户记录并移除对应 password。"""
-        repo = MockUserRepository()
+        repo = MockUserRepository.empty()
         user_data = UserCreate(username="u", phone="111", password="pw")
         user = repo.create_user(username=user_data.username, phone=user_data.phone, hashed_password=user_data.password)
 
@@ -84,7 +84,7 @@ class TestMockUserRepository:
 class TestMockUserStatsAggregate:
     def test_get_stats_should_exist_after_create_user(self):
         """意图：创建用户后，user_stats 应作为聚合不变量存在（默认 0/0）。"""
-        repo = MockUserRepository()
+        repo = MockUserRepository.empty()
         user_data = UserCreate(username="u", phone="111", password="pw")
         user = repo.create_user(username=user_data.username, phone=user_data.phone, hashed_password=user_data.password)
 
@@ -95,7 +95,7 @@ class TestMockUserStatsAggregate:
 
     def test_update_stats_should_increase_and_not_below_zero(self):
         """意图：聚合仓储的 update_stats 支持增量更新，且计数不应被更新到负数。"""
-        repo = MockUserRepository()
+        repo = MockUserRepository.empty()
 
         user_data = UserCreate(username="u", phone="111", password="pw")
         user = repo.create_user(username=user_data.username, phone=user_data.phone, hashed_password=user_data.password)

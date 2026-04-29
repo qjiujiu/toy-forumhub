@@ -1,5 +1,5 @@
 
-from app.schemas.v2.post import PostCreate, PostDto
+from app.schemas.v2.post import PostCreate, PostStatus
 from app.schemas.v2.post_content import PostContentUpdate
 from app.storage.v2.mock.mock_post import MockPostRepository
 from app.storage.v2.mock.mock_user import MockUserRepository
@@ -16,13 +16,13 @@ class TestMockPostRepository:
         - mock repo 也应对齐“聚合仓储”的抽象：上层不应该再组装 content_repo/stats_repo。
         - 物理三表的细节，被 mock repo 内部的 3 份内存字典隐藏起来。
         """
-        user_repo = MockUserRepository()
-        post_repo = MockPostRepository(user_repo=user_repo)
+        user_repo = MockUserRepository.empty()
+        post_repo = MockPostRepository.empty(user_repo=user_repo)
 
         user_data = UserCreate(username="author", phone="111", password="pw")
         author = user_repo.create_user(username=user_data.username, phone=user_data.phone, hashed_password=user_data.password)
         created = post_repo.create_post(
-            PostCreate(author_id=author.uid, title="t", content="c", post_status=PostDto(publish_status=0))
+            PostCreate(author_id=author.uid, title="t", content="c", post_status=PostStatus(publish_status=0))
         )
 
         out = post_repo.get_by_pid(created.pid)
@@ -35,8 +35,8 @@ class TestMockPostRepository:
 
     def test_soft_delete_should_hide_post_from_queries(self):
         """意图：soft_delete 后，get_by_pid/get_by_author 都不应再返回该帖子。"""
-        post_repo = MockPostRepository()
-        created = post_repo.create_post(PostCreate(author_id="a", title="t", content="c", post_status=PostDto(publish_status=0)))
+        post_repo = MockPostRepository.empty()
+        created = post_repo.create_post(PostCreate(author_id="a", title="t", content="c", post_status=PostStatus(publish_status=0)))
 
         assert post_repo.get_by_pid(created.pid) is not None
         assert post_repo.soft_delete(created.pid) is True
@@ -48,8 +48,8 @@ class TestMockPostRepository:
 
     def test_hard_delete_should_remove_post(self):
         """意图：hard_delete 后，帖子聚合应从存储中移除（含 content/stats）。"""
-        post_repo = MockPostRepository()
-        created = post_repo.create_post(PostCreate(author_id="a", title="t", content="c", post_status=PostDto(publish_status=0)))
+        post_repo = MockPostRepository.empty()
+        created = post_repo.create_post(PostCreate(author_id="a", title="t", content="c", post_status=PostStatus(publish_status=0)))
         assert created.pid in post_repo.posts
         assert created.pid in post_repo.contents
         assert created.pid in post_repo.stats
@@ -61,8 +61,8 @@ class TestMockPostRepository:
 
     def test_update_content_should_patch_only_provided_fields(self):
         """意图：update_content 遵循 PATCH 语义，仅更新显式字段。"""
-        post_repo = MockPostRepository()
-        created = post_repo.create_post(PostCreate(author_id="a", title="t", content="c", post_status=PostDto(publish_status=0)))
+        post_repo = MockPostRepository.empty()
+        created = post_repo.create_post(PostCreate(author_id="a", title="t", content="c", post_status=PostStatus(publish_status=0)))
 
         ok = post_repo.update_content(created.pid, PostContentUpdate(title="t2"))
         assert ok is True
@@ -74,9 +74,9 @@ class TestMockPostRepository:
 
     def test_get_top_liked_with_posts_should_sort_by_like_count_desc(self):
         """意图：get_top_liked_with_posts 按 like_count 倒序返回。"""
-        post_repo = MockPostRepository()
-        p1 = post_repo.create_post(PostCreate(author_id="a", title="t1", content="c1", post_status=PostDto()))
-        p2 = post_repo.create_post(PostCreate(author_id="a", title="t2", content="c2", post_status=PostDto()))
+        post_repo = MockPostRepository.empty()
+        p1 = post_repo.create_post(PostCreate(author_id="a", title="t1", content="c1", post_status=PostStatus()))
+        p2 = post_repo.create_post(PostCreate(author_id="a", title="t2", content="c2", post_status=PostStatus()))
 
         # 说明：PostStatsDto 不在 IPostRepository 里提供更新接口，这里直接改 mock 的内部状态用于测试排序。
         post_repo.stats[p1.pid].like_count = 1

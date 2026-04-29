@@ -34,6 +34,7 @@ def app():
     # NOTE: Python “鸭子类型”(Duck Typing)
     # - 无需显式继承某个父类/接口
     # - 只要对象提供了协议所需的方法, 即可被当作该协议类型使用
+    # 使用 mock repo 的预置数据：模拟“数据库本身就有数据”的场景
     user_repo = MockUserRepository()
     post_repo = MockPostRepository(user_repo=user_repo)
 
@@ -71,11 +72,11 @@ class TestPostsApiV2:
         """
         测试意图：创建帖子后，通过 `/posts/id/{pid}` 能够查到该帖子 (BizResponse 包装结构正确)
         """
-        # 先在 mock user repo 里面创建作者（当前 service 未强校验 author_id，但这里提前准备，避免后续加校验导致用例失效）
-        # client 里面拿出来的 app 就是上面定义的, app.state.user_repo 也是上述 app 里面定义的
+        # 使用预置数据里的作者（模拟 DB 里已有用户）
         user_repo: MockUserRepository = client.app.state.user_repo
-        user_data = UserCreate(username="author", phone="111", password="pw")
-        author = user_repo.create_user(username=user_data.username, phone=user_data.phone, hashed_password=user_data.password)
+        seeded = user_repo.list_users(page=0, page_size=1)
+        assert seeded.count >= 1
+        author = seeded.users[0]
         payload = {
             "author_id": author.uid,
             "title": "t",

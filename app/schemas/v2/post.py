@@ -8,11 +8,14 @@ from app.models.v2.post import PostVisibility, PostPublishStatus
 from app.schemas.v2.post_content import PostContentOut
 from app.schemas.v2.post_stats import PostStatsOut, PostStatsDto
 
-class PostDto(BaseModel):
+
+class PostStatus(BaseModel):
     visibility: Optional[PostVisibility] = None
     publish_status: Optional[PostPublishStatus] = None
 
-# 创建一篇帖子
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+
+
 class PostCreate(BaseModel):
     """
     创建帖子（业务上通常由作者自己调用）
@@ -21,7 +24,7 @@ class PostCreate(BaseModel):
     title: str            # 标题
     content: str          # 正文内容
 
-    post_status: PostDto
+    post_status: PostStatus
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
@@ -32,18 +35,20 @@ class PostCreate(BaseModel):
             raise ValueError("Title and content cannot be empty")
         return v.strip()
 
+
 class PostGet(BaseModel):
     current_user_id: str   # 当前访问者
     author_id: str         # 帖子作者
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
+
 class PostOnlyCreate(BaseModel):
     """
     创建帖子（内部调用插入帖子表中）
-    """ 
+    """
     author_id: str        # 作者ID
-    post_status: PostDto  # 帖子发布状态和可见性
+    post_status: PostStatus  # 帖子发布状态和可见性
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
@@ -57,11 +62,12 @@ class PostOut(BaseModel):
     """
     pid: str                        # 帖子业务主键
     author_id: str                  # 作者 UID
-    post_status: PostDto            # 帖子的状态（发布状态和可见性）
-    post_content: PostContentOut    # 帖子内容 
+    post_status: PostStatus            # 帖子的状态（发布状态和可见性）
+    post_content: PostContentOut    # 帖子内容
     post_stats: PostStatsDto        # 帖子统计数据 (点赞数和评论数)
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class BatchPostsOut(BaseModel):
     """
@@ -82,12 +88,14 @@ class PostUpdate(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
+
 class TopPostAuthorOut(BaseModel):
     uid: str
     username: str
     avatar_url: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class TopPostOut(BaseModel):
     """
@@ -100,6 +108,7 @@ class TopPostOut(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class TopPostsResponse(BaseModel):
     """
     热榜列表返回：
@@ -108,5 +117,3 @@ class TopPostsResponse(BaseModel):
     items: List[TopPostOut]
 
     model_config = ConfigDict(from_attributes=True)
-
-

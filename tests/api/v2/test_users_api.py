@@ -11,6 +11,7 @@ from app.storage.v2.mock.mock_user import MockUserRepository
 
 @pytest.fixture
 def app():
+    # API 单测这里也演示“数据库已有数据”的情况
     user_repo = MockUserRepository()
 
     api = FastAPI()

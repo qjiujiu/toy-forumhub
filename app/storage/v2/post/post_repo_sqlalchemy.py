@@ -8,7 +8,7 @@ from app.models.v2.post_content import PostContent
 from app.models.v2.post_stats import PostStats
 from app.models.v2.user import User
 
-from app.schemas.v2.post import PostOnlyCreate, PostCreate, PostOut, BatchPostsOut, PostDto, TopPostOut, TopPostAuthorOut
+from app.schemas.v2.post import PostOnlyCreate, PostCreate, PostOut, BatchPostsOut, PostStatus, TopPostOut, TopPostAuthorOut
 from app.schemas.v2.post_content import PostContentOut
 from app.schemas.v2.post_content import PostContentUpdate
 from app.schemas.v2.post_stats import PostStatsDto
@@ -34,7 +34,7 @@ class SQLAlchemyPostRepository(IPostRepository):
         - ORM Model 更贴近“存储结构”（列就是列）
         - 所以 repo 层通常需要做一次“字段映射”，把 Schema 转成 ORM 可写入的列。
         """
-        status = data.post_status or PostDto()
+        status = data.post_status or PostStatus()
         payload = {"author_id": data.author_id}
 
         # IntEnum 在 Python 里是 int 的子类：
@@ -61,7 +61,7 @@ class SQLAlchemyPostRepository(IPostRepository):
         - 三张表要么都写成功，要么都失败回滚，这是典型的“聚合内一致性”。
         """
 
-        status = data.post_status or PostDto()
+        status = data.post_status or PostStatus()
         post_payload = {"author_id": data.author_id}
         if status.visibility is not None:
             post_payload["visibility"] = status.visibility.value
@@ -98,7 +98,7 @@ class SQLAlchemyPostRepository(IPostRepository):
         return PostOut(
             pid=post.pid,
             author_id=post.author_id,
-            post_status=PostDto.model_validate(post),
+            post_status=PostStatus.model_validate(post),
             post_content=PostContentOut.model_validate(post.post_content),
             post_stats=stats_dto,
         )
@@ -137,7 +137,7 @@ class SQLAlchemyPostRepository(IPostRepository):
         items = [out for p in posts if (out := self._build_post_out(p)) is not None]
         return BatchPostsOut(total=total, count=len(items), items=items)
 
-    def update(self, pid: str, data: PostDto) -> bool:
+    def update(self, pid: str, data: PostStatus) -> bool:
         post = (
             self.db.query(Post)
             .filter(Post.pid == pid)

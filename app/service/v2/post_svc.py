@@ -1,6 +1,6 @@
 from typing import List
 
-from app.schemas.v2.post import PostCreate, PostOut, BatchPostsOut, PostDto, PostUpdate, TopPostOut
+from app.schemas.v2.post import PostCreate, PostOut, BatchPostsOut, PostStatus, PostUpdate, TopPostOut
 from app.schemas.v2.post_content import PostContentUpdate
 from app.schemas.v2.user import UserRole
 
@@ -85,7 +85,7 @@ class PostService:
         if post_out.author_id != uid:
             raise ForbiddenAction(f"user {uid} cannot update post {pid}")
 
-        self._post_repo.update(pid, PostDto(visibility=data.visibility))
+        self._post_repo.update(pid, PostStatus(visibility=data.visibility))
         logger.info(f"[UPDATE_POST_VISIBILITY] Updated visibility for pid={pid} by user={uid}")
 
         updated_post = self._post_repo.get_by_pid(pid)
@@ -104,7 +104,7 @@ class PostService:
         if not post_out:
             raise PostNotFound(f"post {pid} not found")
 
-        self._post_repo.update(pid, PostDto(publish_status=2))
+        self._post_repo.update(pid, PostStatus(publish_status=2))
         logger.info(f"[BAN_POST] Banned post pid={pid} by admin={admin_uid}")
 
         updated_post = self._post_repo.get_by_pid(pid)
@@ -127,7 +127,7 @@ class PostService:
         if current_status != 0:
             raise ForbiddenAction(f"only draft posts can be published")
 
-        self._post_repo.update(pid, PostDto(publish_status=1))
+        self._post_repo.update(pid, PostStatus(publish_status=1))
         logger.info(f"[PUBLISH_POST] Published post pid={pid} by user={uid}")
 
         updated_post = self._post_repo.get_by_pid(pid)

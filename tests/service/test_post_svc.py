@@ -5,7 +5,7 @@ from app.storage.v2.mock.mock_post import (
 )
 from app.storage.v2.mock.mock_user import MockUserRepository
 
-from app.schemas.v2.post import PostCreate, PostUpdate, PostDto
+from app.schemas.v2.post import PostCreate, PostUpdate, PostStatus
 from app.schemas.v2.post_content import PostContentUpdate
 from app.schemas.v2.user import UserCreate
 from app.models.v2.user import UserRole
@@ -17,13 +17,14 @@ from app.core.exceptions import PostNotFound, ForbiddenAction, AdminPermissionDe
 
 @pytest.fixture
 def user_repo():
-    return MockUserRepository()
+    # service 单测默认使用“干净仓库”，避免被预置数据干扰断言
+    return MockUserRepository.empty()
 
 
 @pytest.fixture
 def post_repo(user_repo):
     # 知识点：SQLAlchemy repo 需要 join users 数据表拿作者信息 (多表联查), mock 通过注入 user_repo 来模拟。
-    return MockPostRepository(user_repo=user_repo)
+    return MockPostRepository.empty(user_repo=user_repo)
 
 
 @pytest.fixture
@@ -43,7 +44,7 @@ class TestPostService:
             author_id=author.uid,
             title="Test Post",
             content="Test content",
-            post_status=PostDto(),
+            post_status=PostStatus(),
         )
 
         result = post_svc.create_post(post_data)
@@ -65,7 +66,7 @@ class TestPostService:
             author_id=author.uid,
             title="Test Post",
             content="Test content",
-            post_status=PostDto(),
+            post_status=PostStatus(),
         )
 
         created = post_svc.create_post(post_data)
@@ -89,7 +90,7 @@ class TestPostService:
                 author_id=author.uid,
                 title=f"Post {i}",
                 content=f"Content {i}",
-                post_status=PostDto(),
+                post_status=PostStatus(),
             )
             post_svc.create_post(post_data)
 
@@ -108,7 +109,7 @@ class TestPostService:
             author_id=author.uid,
             title="Original Title",
             content="Original content",
-            post_status=PostDto(),
+            post_status=PostStatus(),
         )
 
         created = post_svc.create_post(post_data)
@@ -136,7 +137,7 @@ class TestPostService:
             author_id=author.uid,
             title="Test Post",
             content="Test content",
-            post_status=PostDto(),
+            post_status=PostStatus(),
         )
 
         created = post_svc.create_post(post_data)
@@ -161,7 +162,7 @@ class TestPostService:
             author_id=author.uid,
             title="Test Post",
             content="Test content",
-            post_status=PostDto(),
+            post_status=PostStatus(),
         )
 
         created = post_svc.create_post(post_data)
@@ -183,7 +184,7 @@ class TestPostService:
             author_id=author.uid,
             title="Draft Post",
             content="Draft content",
-            post_status=PostDto(publish_status=0),
+            post_status=PostStatus(publish_status=0),
         )
 
         created = post_svc.create_post(post_data)
@@ -208,7 +209,7 @@ class TestPostService:
             author_id=author.uid,
             title="Test Post",
             content="Test content",
-            post_status=PostDto(),
+            post_status=PostStatus(),
         )
 
         created = post_svc.create_post(post_data)
@@ -237,7 +238,7 @@ class TestPostService:
             author_id=author.uid,
             title="Test Post",
             content="Test content",
-            post_status=PostDto(),
+            post_status=PostStatus(),
         )
 
         created = post_svc.create_post(post_data)
@@ -263,7 +264,7 @@ class TestPostService:
                 author_id=author.uid,
                 title=f"Liked Post {i}",
                 content=f"Content {i}",
-                post_status=PostDto(),
+                post_status=PostStatus(),
             )
             post_svc.create_post(post_data)
 
@@ -282,7 +283,7 @@ class TestPostService:
                 author_id=author.uid,
                 title=f"Commented Post {i}",
                 content=f"Content {i}",
-                post_status=PostDto(),
+                post_status=PostStatus(),
             )
             post_svc.create_post(post_data)
 

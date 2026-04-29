@@ -15,7 +15,8 @@ import pytest
 
 @pytest.fixture
 def user_repo():
-    return MockUserRepository()
+    # service 单测默认使用“干净仓库”，避免被预置数据干扰断言
+    return MockUserRepository.empty()
 
 
 @pytest.fixture

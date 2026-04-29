@@ -5,7 +5,7 @@ from app.schemas.v2.post import (
     PostOnlyCreate,
     PostOut,
     BatchPostsOut,
-    PostDto,
+    PostStatus,
     TopPostOut,
 )
 from app.schemas.v2.post_content import PostContentUpdate
@@ -72,7 +72,7 @@ class IPostRepository(Protocol):
 
     # ========== 改 ==========
 
-    def update(self, pid: str, data: PostDto) -> bool:
+    def update(self, pid: str, data: PostStatus) -> bool:
         """
         更新帖子状态字段
         - visibility: 可见性（0=公开, 1=仅作者）
