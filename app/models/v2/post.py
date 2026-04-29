@@ -4,6 +4,7 @@ import datetime
 from app.models.v2.base import Base
 import uuid
 from enum import IntEnum  
+
 # 帖子可见性
 class PostVisibility(IntEnum):
     PUBLIC = 0        # 所有人可见

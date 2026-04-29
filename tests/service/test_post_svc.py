@@ -1,11 +1,11 @@
 import pytest
 
-from tests.mock.mock_post import (
+from app.storage.v2.mock.mock_post import (
     MockPostRepository,
     MockPostContentRepository,
     MockPostStatsRepository,
 )
-from tests.mock.mock_user import MockUserRepository, MockUserStatsRepository
+from app.storage.v2.mock.mock_user import MockUserRepository, MockUserStatsRepository
 
 from app.schemas.v2.post import PostCreate, PostUpdate, PostDto
 from app.schemas.v2.post_content import PostContentUpdate
@@ -66,7 +66,7 @@ class TestPostService:
             post_status=PostDto(),
         )
 
-        result = post_svc.create_post(post_data, to_dict=False)
+        result = post_svc.create_post(post_data)
 
         assert result.author_id == author.uid
         assert result.post_content is not None
@@ -87,14 +87,14 @@ class TestPostService:
             post_status=PostDto(),
         )
 
-        created = post_svc.create_post(post_data, to_dict=False)
+        created = post_svc.create_post(post_data)
 
-        result = post_svc.get_post(created.pid, to_dict=False)
+        result = post_svc.get_post(created.pid)
         assert result is not None
         assert result.pid == created.pid
 
         with pytest.raises(PostNotFound):
-            post_svc.get_post("invalid_pid", to_dict=False)
+            post_svc.get_post("invalid_pid")
 
     def test_get_posts_by_author(self, post_svc, post_repo, content_repo, stats_repo, user_repo):
         from app.schemas.v2.user import UserCreate
@@ -109,9 +109,9 @@ class TestPostService:
                 content=f"Content {i}",
                 post_status=PostDto(),
             )
-            post_svc.create_post(post_data, to_dict=False)
+            post_svc.create_post(post_data)
 
-        result = post_svc.get_posts_by_author(author.uid, page=0, page_size=10, to_dict=False)
+        result = post_svc.get_posts_by_author(author.uid, page=0, page_size=10)
         assert result.total == 3
         assert result.count == 3
 
@@ -128,14 +128,14 @@ class TestPostService:
             post_status=PostDto(),
         )
 
-        created = post_svc.create_post(post_data, to_dict=False)
+        created = post_svc.create_post(post_data)
 
         update_data = PostContentUpdate(
             title="Updated Title",
             content="Updated content",
         )
 
-        result = post_svc.update_post_content(author.uid, created.pid, update_data, to_dict=False)
+        result = post_svc.update_post_content(author.uid, created.pid, update_data)
         assert result.post_content.title == "Updated Title"
         assert result.post_content.content == "Updated content"
 
@@ -155,11 +155,11 @@ class TestPostService:
             post_status=PostDto(),
         )
 
-        created = post_svc.create_post(post_data, to_dict=False)
+        created = post_svc.create_post(post_data)
 
         update_data = PostUpdate(visibility=1)
 
-        result = post_svc.update_post_visibility(author.uid, created.pid, update_data, to_dict=False)
+        result = post_svc.update_post_visibility(author.uid, created.pid, update_data)
         assert result.post_status.visibility == 1
 
     def test_ban_post(self, post_svc, post_repo, content_repo, stats_repo, user_repo):
@@ -179,9 +179,9 @@ class TestPostService:
             post_status=PostDto(),
         )
 
-        created = post_svc.create_post(post_data, to_dict=False)
+        created = post_svc.create_post(post_data)
 
-        result = post_svc.ban_post(admin.uid, created.pid, to_dict=False)
+        result = post_svc.ban_post(admin.uid, created.pid)
         assert result.post_status.publish_status == 2
 
         with pytest.raises(AdminPermissionDenied):
@@ -200,9 +200,9 @@ class TestPostService:
             post_status=PostDto(publish_status=0),
         )
 
-        created = post_svc.create_post(post_data, to_dict=False)
+        created = post_svc.create_post(post_data)
 
-        result = post_svc.publish_post(author.uid, created.pid, to_dict=False)
+        result = post_svc.publish_post(author.uid, created.pid)
         assert result.post_status.publish_status == 1
 
         with pytest.raises(ForbiddenAction):
@@ -224,7 +224,7 @@ class TestPostService:
             post_status=PostDto(),
         )
 
-        created = post_svc.create_post(post_data, to_dict=False)
+        created = post_svc.create_post(post_data)
 
         with pytest.raises(ForbiddenAction):
             post_svc.soft_delete_post(author2.uid, created.pid)
@@ -233,7 +233,7 @@ class TestPostService:
         assert result is True
 
         with pytest.raises(PostNotFound):
-            post_svc.get_post(created.pid, to_dict=False)
+            post_svc.get_post(created.pid)
 
     def test_hard_delete_post(self, post_svc, post_repo, content_repo, stats_repo, user_repo):
         from app.schemas.v2.user import UserCreate
@@ -252,7 +252,7 @@ class TestPostService:
             post_status=PostDto(),
         )
 
-        created = post_svc.create_post(post_data, to_dict=False)
+        created = post_svc.create_post(post_data)
 
         result = post_svc.hard_delete_post(admin.uid, created.pid)
         assert result is True
@@ -276,9 +276,9 @@ class TestPostService:
                 content=f"Content {i}",
                 post_status=PostDto(),
             )
-            post_svc.create_post(post_data, to_dict=False)
+            post_svc.create_post(post_data)
 
-        result = post_svc.get_top_liked_posts(limit=10, to_dict=False)
+        result = post_svc.get_top_liked_posts(limit=10)
         assert len(result) <= 10
 
     def test_get_top_commented_posts(self, post_svc, post_repo, content_repo, stats_repo, user_repo):
@@ -294,7 +294,7 @@ class TestPostService:
                 content=f"Content {i}",
                 post_status=PostDto(),
             )
-            post_svc.create_post(post_data, to_dict=False)
+            post_svc.create_post(post_data)
 
-        result = post_svc.get_top_commented_posts(limit=10, to_dict=False)
+        result = post_svc.get_top_commented_posts(limit=10)
         assert len(result) <= 10

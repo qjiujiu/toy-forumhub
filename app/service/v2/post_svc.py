@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Union
+from typing import List
 
 from app.schemas.v2.post import PostCreate, PostOnlyCreate, PostOut, BatchPostsOut, PostDto, PostUpdate, TopPostsResponse, TopPostOut
 from app.schemas.v2.post_content import PostContentCreate, PostContentUpdate
@@ -35,7 +35,7 @@ class PostService:
         if user.user_info.role != UserRole.ADMIN:
             raise AdminPermissionDenied(f"user {uid} is not an admin")
 
-    def create_post(self, data: PostCreate, to_dict: bool = True) -> Union[Dict, PostOut]:
+    def create_post(self, data: PostCreate) -> PostOut:
         pid = self._post_repo.create(PostOnlyCreate.model_validate(data))
         logger.info(f"[CREATE_POST] Created post pid={pid} for author={data.author_id}")
 
@@ -58,31 +58,29 @@ class PostService:
         if not post_out:
             raise PostNotFound(f"post {pid} not found after creation")
 
-        return post_out.model_dump() if to_dict else post_out
+        return post_out
 
-    def get_post(self, pid: str, to_dict: bool = True) -> Union[Dict, PostOut]:
+    def get_post(self, pid: str) -> PostOut:
         post_out = self._post_repo.get_by_pid(pid)
         if not post_out:
             raise PostNotFound(f"post {pid} not found")
-        return post_out.model_dump() if to_dict else post_out
+        return post_out
 
     def get_posts_by_author(
         self,
         author_id: str,
         page: int = 0,
         page_size: int = 10,
-        to_dict: bool = True,
-    ) -> Union[Dict, BatchPostsOut]:
+    ) -> BatchPostsOut:
         result = self._post_repo.get_by_author(author_id, page, page_size)
-        return result.model_dump() if to_dict else result
+        return result
 
     def update_post_content(
         self,
         uid: str,
         pid: str,
         data: PostContentUpdate,
-        to_dict: bool = True,
-    ) -> Union[Dict, PostOut]:
+    ) -> PostOut:
         post_out = self._post_repo.get_by_pid(pid)
         if not post_out:
             raise PostNotFound(f"post {pid} not found")
@@ -93,15 +91,16 @@ class PostService:
         logger.info(f"[UPDATE_POST_CONTENT] Updated content for pid={pid} by user={uid}")
 
         updated_post = self._post_repo.get_by_pid(pid)
-        return updated_post.model_dump() if to_dict else updated_post
+        if not updated_post:
+            raise PostNotFound(f"post {pid} not found")
+        return updated_post
 
     def update_post_visibility(
         self,
         uid: str,
         pid: str,
         data: PostUpdate,
-        to_dict: bool = True,
-    ) -> Union[Dict, PostOut]:
+    ) -> PostOut:
         post_out = self._post_repo.get_by_pid(pid)
         if not post_out:
             raise PostNotFound(f"post {pid} not found")
@@ -112,14 +111,15 @@ class PostService:
         logger.info(f"[UPDATE_POST_VISIBILITY] Updated visibility for pid={pid} by user={uid}")
 
         updated_post = self._post_repo.get_by_pid(pid)
-        return updated_post.model_dump() if to_dict else updated_post
+        if not updated_post:
+            raise PostNotFound(f"post {pid} not found")
+        return updated_post
 
     def ban_post(
         self,
         admin_uid: str,
         pid: str,
-        to_dict: bool = True,
-    ) -> Union[Dict, PostOut]:
+    ) -> PostOut:
         self._verify_admin(admin_uid)
 
         post_out = self._post_repo.get_by_pid(pid)
@@ -130,14 +130,15 @@ class PostService:
         logger.info(f"[BAN_POST] Banned post pid={pid} by admin={admin_uid}")
 
         updated_post = self._post_repo.get_by_pid(pid)
-        return updated_post.model_dump() if to_dict else updated_post
+        if not updated_post:
+            raise PostNotFound(f"post {pid} not found")
+        return updated_post
 
     def publish_post(
         self,
         uid: str,
         pid: str,
-        to_dict: bool = True,
-    ) -> Union[Dict, PostOut]:
+    ) -> PostOut:
         post_out = self._post_repo.get_by_pid(pid)
         if not post_out:
             raise PostNotFound(f"post {pid} not found")
@@ -152,7 +153,9 @@ class PostService:
         logger.info(f"[PUBLISH_POST] Published post pid={pid} by user={uid}")
 
         updated_post = self._post_repo.get_by_pid(pid)
-        return updated_post.model_dump() if to_dict else updated_post
+        if not updated_post:
+            raise PostNotFound(f"post {pid} not found")
+        return updated_post
 
     def soft_delete_post(
         self,
@@ -184,10 +187,10 @@ class PostService:
         logger.info(f"[HARD_DELETE] Hard deleted post pid={pid} by admin={admin_uid}")
         return True
 
-    def get_top_liked_posts(self, limit: int = 10, to_dict: bool = True) -> Union[Dict, List[TopPostOut]]:
+    def get_top_liked_posts(self, limit: int = 10) -> List[TopPostOut]:
         items = self._stats_repo.get_top_liked_with_posts(limit)
-        return [i.model_dump() for i in items] if to_dict else items
+        return items
 
-    def get_top_commented_posts(self, limit: int = 10, to_dict: bool = True) -> Union[Dict, List[TopPostOut]]:
+    def get_top_commented_posts(self, limit: int = 10) -> List[TopPostOut]:
         items = self._stats_repo.get_top_commented_with_posts(limit)
-        return [i.model_dump() for i in items] if to_dict else items
+        return items

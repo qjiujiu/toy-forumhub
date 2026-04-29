@@ -1,15 +1,15 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
-from app.storage.v2.user.SQLAlchemyUserRepository import SQLAlchemyUserRepository
-from app.storage.v2.user_stats.SQLAlchemyUserStatsRepository import SQLAlchemyUserStatsRepository
-from app.storage.v2.post.SQLAlchemyPostRepository import SQLAlchemyPostRepository
-from app.storage.v2.post_content.SQLAlchemyPostConRepository import SQLAlchemyPostContentRepository
-from app.storage.v2.post_stats.SQLAlchemyPostStatsRepository import SQLAlchemyPostStatsRepository
-from app.storage.comment.SQLAlchemyCommentRepository import SQLAlchemyCommentRepository
-from app.storage.comment_content.SQLAlchemyComConRepository import SQLAlchemyCommentContentRepository
-from app.storage.follow.SQLAlchemyFollowRepository import SQLAlchemyFollowRepository
-from app.storage.like.SQLAlchemyLikeRepository import SQLAlchemyLikeRepository
+from app.storage.v2.user.user_repo_sqlalchemy import SQLAlchemyUserRepository
+from app.storage.v2.user_stats.user_stats_repo_sqlalchemy import SQLAlchemyUserStatsRepository
+from app.storage.v2.post.post_repo_sqlalchemy import SQLAlchemyPostRepository
+from app.storage.v2.post_content.post_content_repo_sqlalchemy import SQLAlchemyPostContentRepository
+from app.storage.v2.post_stats.post_stats_repo_sqlalchemy import SQLAlchemyPostStatsRepository
+from app.storage.v1.comment.comment_repo_sqlalchemy import SQLAlchemyCommentRepository
+from app.storage.v1.comment_content.comment_content_repo_sqlalchemy import SQLAlchemyCommentContentRepository
+from app.storage.v1.follow.follow_repo_sqlalchemy import SQLAlchemyFollowRepository
+from app.storage.v1.like.like_repo_sqlalchemy import SQLAlchemyLikeRepository
 
 from fastapi import Depends
 
