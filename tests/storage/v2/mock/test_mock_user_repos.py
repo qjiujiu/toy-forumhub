@@ -1,14 +1,10 @@
-from datetime import datetime, timezone, timedelta
-
-import pytest
-
 from app.schemas.v2.user import UserCreate, UserInfoUpdateDto
-from app.models.v2.user import UserRole
 from app.schemas.v2.user_req import UserAdminPatch, UserInfoPatch, UserPasswordPatch
 from app.schemas.v2.user_stats import UserStatsDto
-
 from app.storage.v2.mock.mock_user import MockUserRepository
-
+from app.models.v2.user import UserRole
+from datetime import datetime, timezone, timedelta
+import pytest
 
 class TestMockUserRepository:
     def test_create_and_find_user_by_uid_should_return_user(self):
