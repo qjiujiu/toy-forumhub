@@ -10,7 +10,7 @@ help:
 	@echo "  make swagger        - Generate latest swagger.json into docs/"
 
 run:
-	uvicorn app.main:app --reload
+	uvicorn main:app --reload
 
 run_frontend:
 	cd frontend && npm run dev
@@ -25,6 +25,6 @@ db_mock_data:
 	python3 scripts/load_mock_data.py
 
 swagger:
-	conda run -n work python3 -c "from app.main import app; import json; print(json.dumps(app.openapi(), ensure_ascii=False, indent=2))" > docs/swagger.json
-	conda run -n work python3 -c "from app.main import app; import json; print(json.dumps(app.openapi(), ensure_ascii=False, indent=2))" > openapi.json
+	conda run -n work python3 -c "from main import app; import json; print(json.dumps(app.openapi(), ensure_ascii=False, indent=2))" > docs/swagger.json
+	conda run -n work python3 -c "from main import app; import json; print(json.dumps(app.openapi(), ensure_ascii=False, indent=2))" > openapi.json
 	@echo "Generated docs/swagger.json and openapi.json"

@@ -1,0 +1,140 @@
+from fastapi import APIRouter, Depends
+from app.schemas.v1.follow import BatchFollowsOut, FollowCreate, FollowCancel
+
+from app.core.biz_response import BizResponse
+from app.service.v1 import follow_svc
+
+from app.storage.v1.database import (
+    get_user_repo,
+    get_usersta_repo,
+    get_follow_repo,
+)
+from app.storage.v1.user_stats.user_stats_interface import IUserStatsRepository
+from app.storage.v1.follow.follow_interface import IFollowRepository
+from app.storage.v1.user.user_interface import IUserRepository
+from app.core.exceptions import (
+    UserNotFound,
+    FollowYourselfError,
+    AlreadyFollowingError,
+    NotFollowingError,
+    HardDeleteFollowRequiresSoftDeleteError,
+)
+from app.core.logx import logger
+logger.is_debug(True)
+
+follows_router = APIRouter(prefix="/follows", tags=["follows"])
+
+
+@follows_router.post("/", response_model=None)
+def follow_user(follow: FollowCreate, follow_repo: IFollowRepository = Depends(get_follow_repo), stats_repo: IUserStatsRepository = Depends(get_usersta_repo), user_repo: IUserRepository = Depends(get_user_repo),):
+    """
+    关注用户：
+    - current_uid 关注 target_uid
+    - 更新双方的关注数/粉丝数
+    """
+    try:
+        follow = follow_svc.follow_user(
+            follow_repo=follow_repo,
+            stats_repo=stats_repo,
+            user_repo=user_repo,
+            follow=follow,
+            to_dict=True,
+        )
+        return BizResponse(data=follow)
+    except FollowYourselfError as e:
+        return BizResponse(data=None, msg=str(e), status_code=400)
+    except AlreadyFollowingError as e:
+        return BizResponse(data=None, msg=str(e), status_code=400)
+    except UserNotFound as e:
+        return BizResponse(data=None, msg=str(e), status_code=404)
+    except Exception as e:
+        return BizResponse(data=None, msg=str(e), status_code=500)
+
+
+@follows_router.delete("/soft")
+def cancel_follow(cancel_follow: FollowCancel, follow_repo: IFollowRepository = Depends(get_follow_repo), stats_repo: IUserStatsRepository = Depends(get_usersta_repo),):
+    """
+    取消关注：
+    - current_uid 取消关注 target_uid
+    - 更新双方的关注数/粉丝数
+    """
+    try:
+        ok = follow_svc.cancel_follow(
+            follow_repo=follow_repo,
+            stats_repo=stats_repo,
+            cancel_follow=cancel_follow
+        )
+        if not ok:
+            return BizResponse(data=False, msg="cancel following failed", status_code=400)
+        return BizResponse(data=True)
+    except NotFollowingError as e:
+        return BizResponse(data=False, msg=str(e), status_code=400)
+    except Exception as e:
+        return BizResponse(data=False, msg=str(e), status_code=500)
+
+@follows_router.delete("/hard", response_model=bool)
+def admin_hard_delete_follow(
+    data: FollowCancel,
+    follow_repo: IFollowRepository = Depends(get_follow_repo),
+    user_repo: IUserRepository = Depends(get_user_repo),
+):
+    """
+    管理员硬删除关注关系：
+    - 要求该关注记录已经处于软删除状态（deleted_at 不为 NULL）
+    """
+    try:
+        ok = follow_svc.hard_delete_follow(
+            follow_repo=follow_repo,
+            user_repo=user_repo,
+            data=data,
+        )
+        if not ok:
+            return BizResponse(data=False, msg="follow relation not found", status_code=404,)
+        return BizResponse(data=True)
+
+    except UserNotFound as e:
+        return BizResponse(data=False, msg=str(e),status_code=404,)
+    except HardDeleteFollowRequiresSoftDeleteError as e:
+        # 业务约束错误：需要先软删再硬删 → 返回 400 / 409 均可
+        return BizResponse(data=False, msg=str(e), status_code=400,)
+    except Exception as e:
+        logger.exception("[ADMIN] hard_delete_follow error")
+        return BizResponse(data=False, msg=str(e), status_code=500,)
+
+
+@follows_router.get("/following/{uid}", response_model=BatchFollowsOut)
+def list_following(uid: str, page: int = 0, page_size: int = 10, follow_repo: IFollowRepository = Depends(get_follow_repo),):
+    """
+    我关注的人列表
+    """
+    logger.debug("ok")
+    try:
+        result = follow_svc.list_following(
+            follow_repo=follow_repo,
+            current_uid=uid,
+            page=page,
+            page_size=page_size,
+            to_dict=True,
+        )
+        return BizResponse(data=result)
+    except Exception as e:
+        return BizResponse(data=list(), msg=str(e), status_code=500)
+
+
+@follows_router.get("/followers/{uid}", response_model=BatchFollowsOut)
+def list_followers(uid: str, page: int = 0, page_size: int = 10, follow_repo: IFollowRepository = Depends(get_follow_repo),):
+    """
+    我的粉丝列表
+    """
+    logger.debug("ok")
+    try:
+        result = follow_svc.list_followers(
+            follow_repo=follow_repo,
+            current_uid=uid,
+            page=page,
+            page_size=page_size,
+            to_dict=True,
+        )
+        return BizResponse(data=result)
+    except Exception as e:
+        return BizResponse(data=list(), msg=str(e), status_code=500)

@@ -11,10 +11,19 @@
 ├── app/                       # FastAPI 后端源码目录
 │   ├── core/                  # 核心配置、异常处理、安全校验、日志等
 │   ├── models/                # SQLAlchemy 数据模型定义
-│   ├── routers/               # API 路由控制器
-│   ├── schemas/               # Pydantic 验证模型 (DTO)
-│   ├── service/               # 业务逻辑层
-│   └── storage/               # 数据访问层 (Repository Pattern) 接口及实现
+│   ├── api/                   # API 路由（已按 v1/v2 拆分）
+│   │   ├── v1/                # v1 API
+│   │   └── v2/                # v2 API
+│   ├── schemas/               # Pydantic 模型（建议按 v1/v2 + req/dto/resp 语义拆分）
+│   │   ├── v1/
+│   │   └── v2/
+│   ├── service/               # 业务逻辑层（v1/v2 拆分）
+│   │   ├── v1/
+│   │   └── v2/
+│   └── storage/               # 数据访问层（Repository Pattern，按 v1/v2 拆分）
+│       ├── v1/
+│       └── v2/
+│          └── mock/           # v2 内存版 mock repo（给 service/api 单测注入）
 ├── docs/                      # 项目文档及静态资源目录
 │   ├── img/                   # 图片资源
 │   ├── swagger.json           # 自动生成的 OpenAPI 规范文件
@@ -39,6 +48,31 @@
     ├── load_mock_data.py      # 将 json 数据导入数据库的脚本
     └── mock_data/             # 用于测试的 Mock JSON 数据
 ```
+
+### 编码规范: 约定优于配置
+
+- 命名规范：Python 模块/文件/函数/方法，统一采用 `snake_case.py`，使用全大写表示常量，使用驼峰式命名代表类对象。
+
+- 分层与依赖方向：`api -> service -> storage`，其中，
+  - 业务层  service 不负责序列化，统一交给  `app/core/biz_response.py`  `BizResponse` 来做 `jsonable_encoder`。
+  - Repository 实现文件统一 `*_repo_sqlalchemy.py`。
+
+- 注释风格：
+  - 永远不使用中文括号，中文注释之中若有需要使用括号补充说明，请使用英文括号
+  - 现有的详细注释, 尤其带知识点/原理解释的注释, 视为“不可删除资产”, 只有人可以删除, LLM 不可以为了“简洁/重构/格式化”去删改。如果代码需要删改, 注释也要跟随迁移
+  
+- v1/v2 版本隔离：
+  
+  - 区分两个版本，其中`app/api/`、`app/service/`、`app/storage/`、`app/models/`、`app/schemas/` 均按 `v1/ v2/` 拆分，避免跨版本 import，
+  - v1 版本会被逐步重构变成 v2 版本，当重构完成之后会标记一个 git tag 存档，并对两个版本进行比较。
+  
+- 单元测试风格：
+  - 统一使用测试类 (`TestXxx`) 管理测试函数，而不是使用零散的测试函数
+  - 每个测试函数通过 docstring写清楚测试意图
+
+- API 单测建议：使用 `TestClient` + `dependency_overrides` 注入内存版本的 mock repo（`app/storage/v2/mock/`），避免依赖真实 DB，以便本地无法访问数据的合作者也可以通过单元测试来验证代码的正确性。
+
+  
 
 ### 产品形态
 
