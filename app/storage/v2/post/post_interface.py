@@ -1,11 +1,22 @@
-from typing import Optional, Protocol
-from app.schemas.v2.post import PostOnlyCreate, PostOut, BatchPostsOut, PostDto
+from typing import Optional, Protocol, List
+
+from app.schemas.v2.post import (
+    PostCreate,
+    PostOnlyCreate,
+    PostOut,
+    BatchPostsOut,
+    PostDto,
+    TopPostOut,
+)
+from app.schemas.v2.post_content import PostContentUpdate
 
 
 class IPostRepository(Protocol):
     """
-    帖子数据层抽象协议
-    只定义增删改查，不含业务逻辑
+    帖子数据层抽象协议（聚合仓储）
+
+    物理上 posts / post_contents / post_stats 仍然是三张独立表，
+    但本接口屏蔽多表细节，对外以"一个帖子聚合"的形式提供读写能力。
     """
 
     # ========== 增 ==========
@@ -18,6 +29,14 @@ class IPostRepository(Protocol):
         """
         pass
 
+    def create_post(self, data: PostCreate) -> PostOut:
+        """
+        创建帖子聚合：一次事务内写入 posts + post_contents + post_stats。
+        - 三张表要么都写成功，要么都失败回滚（聚合内一致性）。
+        - 返回完整的 PostOut（包含内容与统计）。
+        """
+        pass
+
     # ========== 查 ==========
 
     def get_by_pid(self, pid: str) -> Optional[PostOut]:
@@ -25,6 +44,7 @@ class IPostRepository(Protocol):
         根据 pid 获取单篇帖子（包含内容和统计信息）
         - 通过多表联合查询返回完整 PostOut
         - 过滤已软删除的帖子（deleted_at IS NULL）
+        - 如果 post_content 缺失（数据不一致），返回 None
         """
         pass
 
@@ -32,6 +52,7 @@ class IPostRepository(Protocol):
         """
         根据 author_id 获取该作者的所有帖子（分页）
         - 过滤已软删除的帖子
+        - 过滤 content 缺失的异常数据
         - 按 _id 倒序
         """
         pass
@@ -40,8 +61,17 @@ class IPostRepository(Protocol):
         """
         获取所有帖子（分页）
         - 过滤已软删除的帖子
+        - 过滤 content 缺失的异常数据
         - 按 _id 倒序
         """
+        pass
+
+    def get_top_liked_with_posts(self, limit: int = 10) -> List[TopPostOut]:
+        """返回近 7 天点赞数 TopN 的帖子（包含标题 + 作者基础信息 + 计数）。"""
+        pass
+
+    def get_top_commented_with_posts(self, limit: int = 10) -> List[TopPostOut]:
+        """返回近 7 天评论数 TopN 的帖子（包含标题 + 作者基础信息 + 计数）。"""
         pass
 
     # ========== 改 ==========
@@ -52,6 +82,14 @@ class IPostRepository(Protocol):
         - visibility: 可见性（0=公开, 1=仅作者）
         - publish_status: 发布状态（0=草稿, 1=已发布）
         - 业务逻辑应在业务层控制
+        """
+        pass
+
+    def update_content(self, pid: str, data: PostContentUpdate) -> bool:
+        """
+        更新帖子内容（post_contents 表）
+        - PATCH 语义：只更新显式传入的字段
+        - 返回是否更新成功
         """
         pass
 

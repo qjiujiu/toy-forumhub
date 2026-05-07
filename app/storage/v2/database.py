@@ -2,12 +2,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 from app.storage.v2.user.SQLAlchemyUserRepository import SQLAlchemyUserRepository
-from app.storage.v2.user_stats.SQLAlchemyUserStatsRepository import SQLAlchemyUserStatsRepository
 from app.storage.v2.post.SQLAlchemyPostRepository import SQLAlchemyPostRepository
-from app.storage.v2.post_content.SQLAlchemyPostConRepository import SQLAlchemyPostContentRepository
-from app.storage.v2.post_stats.SQLAlchemyPostStatsRepository import SQLAlchemyPostStatsRepository
-from app.storage.comment.SQLAlchemyCommentRepository import SQLAlchemyCommentRepository
-from app.storage.comment_content.SQLAlchemyComConRepository import SQLAlchemyCommentContentRepository
+from app.storage.v2.comment.SQLAlchemyCommentRepository import SQLAlchemyCommentRepository
 from app.storage.follow.SQLAlchemyFollowRepository import SQLAlchemyFollowRepository
 from app.storage.like.SQLAlchemyLikeRepository import SQLAlchemyLikeRepository
 
@@ -46,28 +42,12 @@ def get_follow_repo(db: Session = Depends(get_db)) -> SQLAlchemyFollowRepository
     return SQLAlchemyFollowRepository(db)
 
 
-def get_usersta_repo(db: Session = Depends(get_db)) -> SQLAlchemyUserStatsRepository:
-    return SQLAlchemyUserStatsRepository(db)
-
-
 def get_post_repo(db: Session = Depends(get_db)) -> SQLAlchemyPostRepository:
     return SQLAlchemyPostRepository(db)
 
 
-def get_postcon_repo(db: Session = Depends(get_db)) -> SQLAlchemyPostContentRepository:
-    return SQLAlchemyPostContentRepository(db)
-
-
-def get_poststats_repo(db: Session = Depends(get_db)) -> SQLAlchemyPostStatsRepository:
-    return SQLAlchemyPostStatsRepository(db)
-
-
 def get_comment_repo(db: Session = Depends(get_db)) -> SQLAlchemyCommentRepository:
     return SQLAlchemyCommentRepository(db)
-
-
-def get_comcon_repo(db: Session = Depends(get_db)) -> SQLAlchemyCommentContentRepository:
-    return SQLAlchemyCommentContentRepository(db)
 
 
 def get_like_repo(db: Session = Depends(get_db)) -> SQLAlchemyLikeRepository:
