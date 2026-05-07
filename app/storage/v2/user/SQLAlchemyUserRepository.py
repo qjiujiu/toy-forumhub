@@ -2,6 +2,7 @@ from typing import Optional
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from app.models.v2.user import User, UserRole, UserStatus
+from app.models.v2.user_stats import UserStats
 from app.schemas.v2.user import (
     UserInfoDto,
     UserTimeDto,
@@ -10,6 +11,7 @@ from app.schemas.v2.user import (
     BatchUsersOut,
     UserUpdateDto,
 )
+from app.schemas.v2.user_stats import UserStatsDto, UserStatsWithUserOut
 from app.storage.v2.user.user_interface import IUserRepository
 from app.core.db import transaction
 
@@ -87,6 +89,10 @@ class SQLAlchemyUserRepository(IUserRepository):
         )
 
     def create_user(self, user_data: UserCreate) -> UserOut:
+        """
+        创建用户聚合：一次事务内写入 users + user_stats。
+        保证用户创建后必然有对应的统计记录（0/0）。
+        """
         user = User(
             username=user_data.username,
             phone=user_data.phone,
@@ -94,8 +100,13 @@ class SQLAlchemyUserRepository(IUserRepository):
             role=UserRole.NORMAL_USER.value,
             status=UserStatus.NORMAL.value,
         )
+
+        # 创建默认统计记录
+        stats = UserStats(user_id=user.uid, following_count=0, followers_count=0)
+
         with transaction(self.db):
-            self.db.add(user)
+            self.db.add_all([user, stats])
+
         self.db.refresh(user)
         return _to_user_out(user)
 
@@ -122,3 +133,50 @@ class SQLAlchemyUserRepository(IUserRepository):
     def get_password(self, uid: str) -> Optional[str]:
         user = self._base_query().filter(User.uid == uid).first()
         return user.password if user else None
+
+    # ========== 聚合能力：user_stats ==========
+
+    def _get_stats_orm(self, user_id: str):
+        return self.db.query(UserStats).filter(UserStats.user_id == user_id).first()
+
+    def get_stats(self, user_id: str) -> UserStatsDto:
+        stats = self._get_stats_orm(user_id)
+        if stats is None:
+            raise RuntimeError(
+                f"user_stats missing for user_id={user_id}; "
+                f"this violates aggregate invariant (users/user_stats should be created together). "
+                f"Please run a backfill/migration to repair historical data."
+            )
+        return UserStatsDto.model_validate(stats)
+
+    def update_stats(self, user_id: str, following_step: int = 0, followers_step: int = 0) -> UserStatsDto:
+        if following_step == 0 and followers_step == 0:
+            return self.get_stats(user_id)
+
+        stats = self._get_stats_orm(user_id)
+        if stats is None:
+            raise RuntimeError(
+                f"user_stats missing for user_id={user_id}; cannot update stats. "
+                f"Please repair historical data first."
+            )
+
+        with transaction(self.db):
+            if following_step != 0:
+                stats.following_count = max(0, stats.following_count + following_step)
+            if followers_step != 0:
+                stats.followers_count = max(0, stats.followers_count + followers_step)
+
+        self.db.refresh(stats)
+        return UserStatsDto.model_validate(stats)
+
+    def get_user_profile(self, user_id: str) -> Optional[UserStatsWithUserOut]:
+        user = self._base_query().filter(User.uid == user_id).first()
+        if not user:
+            return None
+
+        stats_dto = self.get_stats(user_id)
+
+        return UserStatsWithUserOut(
+            user_info=_to_user_out(user),
+            user_stats=stats_dto,
+        )
