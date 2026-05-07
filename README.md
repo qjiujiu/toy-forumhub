@@ -11,7 +11,7 @@
 ├── app/                       # FastAPI 后端源码目录
 │   ├── core/                  # 核心配置、异常处理、安全校验、日志等
 │   ├── models/                # SQLAlchemy 数据模型定义
-│   ├── routers/               # API 路由控制器
+│   ├── api/                   # API 路由控制器
 │   ├── schemas/               # Pydantic 验证模型 (DTO)
 │   ├── service/               # 业务逻辑层
 │   └── storage/               # 数据访问层 (Repository Pattern) 接口及实现
