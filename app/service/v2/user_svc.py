@@ -16,7 +16,6 @@ from app.schemas.v2.user import (
 from app.schemas.v2.user_stats import UserStatsWithUserOut
 
 from app.storage.v2.user.user_interface import IUserRepository
-from app.storage.v2.user_stats.user_stats_interface import IUserStatsRepository
 
 from app.core.logx import logger
 from app.core.exceptions import UserNotFound, PasswordMismatchError, AdminPermissionDenied
@@ -24,9 +23,9 @@ from app.core.security import hash_password, verify_password
 
 
 class UserService:
-    def __init__(self, user_repo: IUserRepository, stats_repo: IUserStatsRepository):
+    def __init__(self, user_repo: IUserRepository):
+        # UserService 只依赖一个聚合 UserRepository（内部管理 user + user_stats）
         self._user_repo = user_repo
-        self._stats_repo = stats_repo
 
     def _get_user_or_raise(self, uid: str) -> UserOut:
         user = self._user_repo.find_user(uid=uid)
@@ -47,9 +46,6 @@ class UserService:
 
         new_user = self._user_repo.create_user(user_data)
         logger.info(f"[CREATE_USER] Created user uid={new_user.uid}")
-
-        self._stats_repo.get_or_create_stats(new_user.uid)
-        logger.info(f"[CREATE_USER] Initialized statistics for user uid={new_user.uid}")
 
         return new_user.model_dump() if to_dict else new_user
 
@@ -89,7 +85,7 @@ class UserService:
         uid: str,
         to_dict: bool = True
     ) -> Union[Dict, UserStatsWithUserOut]:
-        profile = self._stats_repo.find_stats(uid, with_user=True)
+        profile = self._user_repo.get_user_profile(uid)
         if not profile:
             raise UserNotFound(f"user {uid} not found")
         return profile.model_dump() if to_dict else profile

@@ -1,13 +1,10 @@
 from typing import Dict, List, Optional, Union
 
-from app.schemas.v2.post import PostCreate, PostOnlyCreate, PostOut, BatchPostsOut, PostDto, PostUpdate, TopPostsResponse, TopPostOut
-from app.schemas.v2.post_content import PostContentCreate, PostContentUpdate
-from app.schemas.v2.post_stats import PostStatsCreate, PostStatsDto
+from app.schemas.v2.post import PostCreate, PostOut, BatchPostsOut, PostDto, PostUpdate, TopPostOut
+from app.schemas.v2.post_content import PostContentUpdate
 from app.schemas.v2.user import UserRole
 
 from app.storage.v2.post.post_interface import IPostRepository
-from app.storage.v2.post_content.post_content_interface import IPostContentRepository
-from app.storage.v2.post_stats.post_stats_interface import IPostStatsRepository
 from app.storage.v2.user.user_interface import IUserRepository
 
 from app.core.logx import logger
@@ -19,13 +16,9 @@ class PostService:
     def __init__(
         self,
         post_repo: IPostRepository,
-        content_repo: IPostContentRepository,
-        stats_repo: IPostStatsRepository,
         user_repo: IUserRepository,
     ):
         self._post_repo = post_repo
-        self._content_repo = content_repo
-        self._stats_repo = stats_repo
         self._user_repo = user_repo
 
     def _verify_admin(self, uid: str) -> None:
@@ -36,28 +29,8 @@ class PostService:
             raise AdminPermissionDenied(f"user {uid} is not an admin")
 
     def create_post(self, data: PostCreate, to_dict: bool = True) -> Union[Dict, PostOut]:
-        pid = self._post_repo.create(PostOnlyCreate.model_validate(data))
-        logger.info(f"[CREATE_POST] Created post pid={pid} for author={data.author_id}")
-
-        content_create = PostContentCreate(
-            post_id=pid,
-            title=data.title,
-            content=data.content,
-        )
-        self._content_repo.create(content_create)
-        logger.info(f"[CREATE_POST] Created post_content for pid={pid}")
-
-        stats_create = PostStatsCreate(
-            post_id=pid,
-            post_stats=PostStatsDto(),
-        )
-        self._stats_repo.create(stats_create)
-        logger.info(f"[CREATE_POST] Initialized post_stats for pid={pid}")
-
-        post_out = self._post_repo.get_by_pid(pid)
-        if not post_out:
-            raise PostNotFound(f"post {pid} not found after creation")
-
+        post_out = self._post_repo.create_post(data)
+        logger.info(f"[CREATE_POST] Created post aggregate pid={post_out.pid} for author={data.author_id}")
         return post_out.model_dump() if to_dict else post_out
 
     def get_post(self, pid: str, to_dict: bool = True) -> Union[Dict, PostOut]:
@@ -89,7 +62,9 @@ class PostService:
         if post_out.author_id != uid:
             raise ForbiddenAction(f"user {uid} cannot update post {pid}")
 
-        self._content_repo.update(pid, data)
+        ok = self._post_repo.update_content(pid, data)
+        if not ok:
+            raise PostNotFound(f"post {pid} content not found")
         logger.info(f"[UPDATE_POST_CONTENT] Updated content for pid={pid} by user={uid}")
 
         updated_post = self._post_repo.get_by_pid(pid)
@@ -185,9 +160,9 @@ class PostService:
         return True
 
     def get_top_liked_posts(self, limit: int = 10, to_dict: bool = True) -> Union[Dict, List[TopPostOut]]:
-        items = self._stats_repo.get_top_liked_with_posts(limit)
+        items = self._post_repo.get_top_liked_with_posts(limit)
         return [i.model_dump() for i in items] if to_dict else items
 
     def get_top_commented_posts(self, limit: int = 10, to_dict: bool = True) -> Union[Dict, List[TopPostOut]]:
-        items = self._stats_repo.get_top_commented_with_posts(limit)
+        items = self._post_repo.get_top_commented_with_posts(limit)
         return [i.model_dump() for i in items] if to_dict else items
