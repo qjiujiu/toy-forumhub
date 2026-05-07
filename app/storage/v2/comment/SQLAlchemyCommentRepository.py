@@ -12,7 +12,7 @@ from app.schemas.v2.comment import (
     CommentOut,
     BatchCommentsOut,
     StatusUpdate,
-    CommentQuery,
+    CommentQueryDTO,
     CommentUpdate,
 )
 from app.schemas.v2.comment_content import CommentContentCreate
@@ -92,7 +92,7 @@ class SQLAlchemyCommentRepository(ICommentRepository):
 
     def get_comments(
         self,
-        query: CommentQuery,
+        query: CommentQueryDTO,
         page: int = 0,
         page_size: int = 20,
     ) -> BatchCommentsOut:
@@ -151,7 +151,8 @@ class SQLAlchemyCommentRepository(ICommentRepository):
         with transaction(self.db):
             for field, delta in update_data.items():
                 if delta:
-                    setattr(comment, field, getattr(comment, field) + delta)
+                    current = getattr(comment, field)
+                    setattr(comment, field, max(0, current + delta) )
         return True
 
     def hard_delete(self, cid: str) -> bool:

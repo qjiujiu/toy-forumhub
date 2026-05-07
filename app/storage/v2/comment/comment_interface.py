@@ -6,7 +6,7 @@ from app.schemas.v2.comment import (
     CommentOut,
     BatchCommentsOut,
     StatusUpdate,
-    CommentQuery,
+    CommentQueryDTO,
     CommentUpdate,
 )
 
@@ -45,7 +45,7 @@ class ICommentRepository(Protocol):
 
     def get_comments(
         self,
-        query: CommentQuery,
+        query: CommentQueryDTO,
         page: int = 0,
         page_size: int = 20,
     ) -> BatchCommentsOut:
