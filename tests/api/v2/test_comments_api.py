@@ -110,3 +110,46 @@ class TestCommentsApiV2:
         """意图：不存在的评论 cid 查询帖子返回 404。"""
         r = client.get("/comments/post-by-cid/nonexistent")
         assert r.status_code == 404
+
+    # ==================== 拆分后的查询接口 ====================
+
+    def test_get_comments_by_post(self, client: TestClient):
+        """意图：按 post_id 获取评论列表。"""
+        post_repo = client.app.state.post_repo
+        user_repo = client.app.state.user_repo
+        author = user_repo.list_users(page=0, page_size=1).users[0]
+        post = post_repo.get_all(page=0, page_size=1).items[0]
+        client.post("/comments/", json={"post_id": post.pid, "author_id": author.uid, "content": "c1"})
+        client.post("/comments/", json={"post_id": post.pid, "author_id": author.uid, "content": "c2"})
+        r = client.get(f"/comments/post/{post.pid}", params={"page": 0, "page_size": 10})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["code"] == 200
+        assert body["data"]["total"] == 2
+
+    def test_get_comments_by_author(self, client: TestClient):
+        """意图：按 author_id 获取评论列表。"""
+        user_repo = client.app.state.user_repo
+        post_repo = client.app.state.post_repo
+        author = user_repo.list_users(page=0, page_size=1).users[0]
+        post = post_repo.get_all(page=0, page_size=1).items[0]
+        client.post("/comments/", json={"post_id": post.pid, "author_id": author.uid, "content": "c"})
+        r = client.get(f"/comments/author/{author.uid}", params={"page": 0, "page_size": 10})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["code"] == 200
+        assert body["data"]["total"] >= 1
+
+    def test_get_comments_top_level(self, client: TestClient):
+        """意图：获取帖子的一级评论（parent_id IS NULL）。"""
+        post_repo = client.app.state.post_repo
+        user_repo = client.app.state.user_repo
+        author = user_repo.list_users(page=0, page_size=1).users[0]
+        post = post_repo.get_all(page=0, page_size=1).items[0]
+        client.post("/comments/", json={"post_id": post.pid, "author_id": author.uid, "content": "c1"})
+        client.post("/comments/", json={"post_id": post.pid, "author_id": author.uid, "content": "c2"})
+        r = client.get("/comments/top", params={"post_id": post.pid, "page": 0, "page_size": 10})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["code"] == 200
+        assert body["data"]["total"] == 2

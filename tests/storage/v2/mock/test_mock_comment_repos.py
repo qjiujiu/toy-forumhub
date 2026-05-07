@@ -4,7 +4,7 @@ from tests.mock.mock_comment import MockCommentRepository
 from app.schemas.v2.comment import (
     CommentCreate,
     CommentOnlyCreate,
-    CommentQuery,
+    CommentQueryDTO,
     StatusUpdate,
     CommentUpdate,
 )
@@ -76,7 +76,7 @@ class TestMockCommentRepository:
         """意图：update_counters 增量更新点赞数和评论数。"""
         repo = MockCommentRepository.empty()
         c = repo.create_comment(CommentCreate(post_id="p1", author_id="a1", content="c"))
-        assert repo.update_counters(c.cid, CommentUpdate(like_count_delta=5, comment_count_delta=3)) is True
+        assert repo.update_counters(c.cid, CommentUpdate(like_count=5, comment_count=3)) is True
         found = repo.get_by_cid(c.cid)
         assert found.like_count == 5
         assert found.comment_count == 3
@@ -85,7 +85,7 @@ class TestMockCommentRepository:
         """意图：update_counters 计数不应被更新到负数。"""
         repo = MockCommentRepository.empty()
         c = repo.create_comment(CommentCreate(post_id="p1", author_id="a1", content="c"))
-        repo.update_counters(c.cid, CommentUpdate(like_count_delta=-10, comment_count_delta=-5))
+        repo.update_counters(c.cid, CommentUpdate(like_count=-10, comment_count=-5))
         found = repo.get_by_cid(c.cid)
         assert found.like_count == 0
         assert found.comment_count == 0
@@ -96,7 +96,7 @@ class TestMockCommentRepository:
         repo.create_comment(CommentCreate(post_id="p1", author_id="a1", content="c1"))
         repo.create_comment(CommentCreate(post_id="p1", author_id="a2", content="c2"))
         repo.create_comment(CommentCreate(post_id="p2", author_id="a1", content="c3"))
-        result = repo.get_comments(CommentQuery(post_id="p1"), page=0, page_size=10)
+        result = repo.get_comments(CommentQueryDTO(post_id="p1"), page=0, page_size=10)
         assert result.total == 2
 
     def test_get_comments_filters_by_author_id(self):
@@ -105,7 +105,7 @@ class TestMockCommentRepository:
         repo.create_comment(CommentCreate(post_id="p1", author_id="a1", content="c1"))
         repo.create_comment(CommentCreate(post_id="p2", author_id="a1", content="c2"))
         repo.create_comment(CommentCreate(post_id="p2", author_id="a2", content="c3"))
-        result = repo.get_comments(CommentQuery(author_id="a1"), page=0, page_size=10)
+        result = repo.get_comments(CommentQueryDTO(author_id="a1"), page=0, page_size=10)
         assert result.total == 2
 
     def test_get_comments_pagination(self):
@@ -113,7 +113,7 @@ class TestMockCommentRepository:
         repo = MockCommentRepository.empty()
         for i in range(5):
             repo.create_comment(CommentCreate(post_id="p1", author_id="a1", content=f"c{i}"))
-        result = repo.get_comments(CommentQuery(post_id="p1"), page=0, page_size=2)
+        result = repo.get_comments(CommentQueryDTO(post_id="p1"), page=0, page_size=2)
         assert result.total == 5
         assert result.count == 2
 
