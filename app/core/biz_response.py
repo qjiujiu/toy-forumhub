@@ -1,4 +1,5 @@
 from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from typing import Any, Optional
 from app.core.logx import logger
 
@@ -12,7 +13,7 @@ class BizResponse(JSONResponse):
         # 目前先让 HTTP 状态码作为业务状态码保持一致即可
         code = status_code
         content = {
-            "data": data,
+            "data": jsonable_encoder(data),
             "msg": msg,
             "code": code
         }
