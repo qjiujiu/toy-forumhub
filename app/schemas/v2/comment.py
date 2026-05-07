@@ -29,6 +29,15 @@ class CommentDto(BaseModel):
     reviewed_at: Optional[datetime] = None   # 审核时间
     deleted_at: Optional[datetime] = None   # 软删除时间戳
 
+class CommentQueryDTO(BaseModel):
+    root_id: Optional[str] = None
+    parent_id: Optional[str] = None
+    author_id: Optional[str] = None
+    post_id: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+
 
 class CommentCreate(BaseModel):
     """
@@ -63,19 +72,12 @@ class CommentOnlyCreate(BaseModel):
 
 
 class CommentUpdate(BaseModel):
-    like_count_delta: int = 0
-    comment_count_delta: int = 0
+    like_count: Optional[int] = None
+    comment_count: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
-class CommentQuery(BaseModel):
-    root_id: Optional[str] = None
-    parent_id: Optional[str] = None
-    author_id: Optional[str] = None
-    post_id: Optional[str] = None
-
-    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
 class StatusUpdate(BaseModel):
