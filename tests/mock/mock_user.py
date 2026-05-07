@@ -1,28 +1,57 @@
+"""
+聚合仓储风格的 MockUserRepository。
+
+物理上 users / user_stats 是两张独立表，
+本 Mock 用一个对象内部维护两份字典，屏蔽多表细节，
+对外以"一个用户聚合"的形式提供读写能力，对齐 IUserRepository 协议。
+"""
+
 import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Optional
+
 from app.schemas.v2.user import (
-    UserCreate, UserOut, UserInfoDto, UserTimeDto, BatchUsersOut, UserUpdateDto,
+    UserCreate,
+    UserOut,
+    UserInfoDto,
+    UserTimeDto,
+    BatchUsersOut,
+    UserUpdateDto,
 )
 from app.schemas.v2.user_stats import UserStatsDto, UserStatsWithUserOut
 from app.models.v2.user import UserRole, UserStatus
 
 
+def _now():
+    return datetime.now(timezone(timedelta(hours=8)))
+
+
 class MockUserRepository:
+    """Mock 聚合仓储：内部维护 users/passwords/stats 三份字典，对外以聚合方式操作。"""
+
     def __init__(self):
         self.users: Dict[str, UserOut] = {}
         self.passwords: Dict[str, str] = {}
+        self.stats: Dict[str, UserStatsDto] = {}
+
+    @classmethod
+    def empty(cls):
+        """返回一个空仓库（无预置数据），方便单测从零开始。"""
+        return cls()
 
     def get_password(self, uid: str) -> Optional[str]:
         return self.passwords.get(uid)
 
     def _base_query(self):
-        return [u for u in self.users.values() if not u.user_data.deleted_at and u.user_info.status == UserStatus.NORMAL]
+        return [
+            u for u in self.users.values()
+            if u.user_data.deleted_at is None and u.user_info.status == UserStatus.NORMAL
+        ]
 
     def find_user(self, uid: Optional[str] = None, phone: Optional[str] = None) -> Optional[UserOut]:
         if uid:
             user = self.users.get(uid)
-            if user and not user.user_data.deleted_at and user.user_info.status == UserStatus.NORMAL:
+            if user and user.user_data.deleted_at is None and user.user_info.status == UserStatus.NORMAL:
                 return user
             return None
         elif phone:
@@ -41,14 +70,14 @@ class MockUserRepository:
         matched = self._base_query()
         if username:
             matched = [u for u in matched if u.user_info.username == username]
-        matched.sort(key=lambda x: x.user_data.created_at, reverse=True)
+        matched.sort(key=lambda x: x.user_data.created_at or _now(), reverse=True)
         start = page * page_size
         end = start + page_size
         return BatchUsersOut(total=len(matched), count=len(matched[start:end]), users=matched[start:end])
 
     def create_user(self, user_data: UserCreate) -> UserOut:
         uid = str(uuid.uuid4())
-        now = datetime.now(timezone(timedelta(hours=8)))
+        now = _now()
         new_user = UserOut(
             uid=uid,
             user_info=UserInfoDto(
@@ -64,6 +93,8 @@ class MockUserRepository:
         )
         self.users[uid] = new_user
         self.passwords[uid] = user_data.password
+        # 创建用户时自动创建统计记录（聚合不变量）
+        self.stats[uid] = UserStatsDto(following_count=0, followers_count=0)
         return new_user
 
     def update_user(self, uid: str, update_dto: UserUpdateDto) -> Optional[UserOut]:
@@ -71,8 +102,7 @@ class MockUserRepository:
         if not user or user.user_data.deleted_at or user.user_info.status != UserStatus.NORMAL:
             return None
 
-        now = datetime.now(timezone(timedelta(hours=8)))
-
+        now = _now()
         if update_dto.user_info is not None:
             ui = update_dto.user_info
             if ui.username is not None:
@@ -110,78 +140,41 @@ class MockUserRepository:
     def delete_user(self, uid: str) -> bool:
         if uid in self.users:
             del self.users[uid]
-            if uid in self.passwords:
-                del self.passwords[uid]
+            self.passwords.pop(uid, None)
+            self.stats.pop(uid, None)
             return True
         return False
 
+    # ========== 聚合能力：user_stats ==========
 
-class MockUserStatsRepository:
-    def __init__(self, user_repo: MockUserRepository):
-        self.stats: Dict[str, UserStatsDto] = {}
-        self.user_repo = user_repo
-
-    def find_stats(self, user_id: str, with_user: bool = False) -> Optional[UserStatsWithUserOut]:
-        stat = self.stats.get(user_id)
-        if not stat:
-            return None
-
-        if with_user:
-            user = self.user_repo.find_user(uid=user_id)
-            if not user:
-                return None
-            return UserStatsWithUserOut(
-                user_info=user,
-                user_stats=stat
+    def get_stats(self, user_id: str) -> UserStatsDto:
+        stats = self.stats.get(user_id)
+        if stats is None:
+            raise RuntimeError(
+                f"user_stats missing for user_id={user_id}; "
+                f"this violates aggregate invariant."
             )
-        return UserStatsWithUserOut(
-            user_info=UserOut(uid=user_id, user_info=UserInfoDto(), user_data=UserTimeDto()),
-            user_stats=stat
-        )
+        return stats
 
-    def get_or_create_stats(self, user_id: str) -> UserStatsDto:
-        if user_id not in self.stats:
-            self.stats[user_id] = UserStatsDto(
-                following_count=0,
-                followers_count=0
-            )
-        return self.stats[user_id]
-
-    def create_for_user(self, user_id: str) -> UserStatsDto:
-        return self.get_or_create_stats(user_id)
-
-    def update_stats(self, user_id: str, following_step: int = 0, followers_step: int = 0) -> Optional[UserStatsDto]:
+    def update_stats(self, user_id: str, following_step: int = 0, followers_step: int = 0) -> UserStatsDto:
         if following_step == 0 and followers_step == 0:
-            return self.get_or_create_stats(user_id)
+            return self.get_stats(user_id)
 
-        stat = self.stats.get(user_id)
-        if stat is None:
-            if following_step > 0 or followers_step > 0:
-                stat = UserStatsDto(following_count=0, followers_count=0)
-                self.stats[user_id] = stat
-            else:
-                return None
+        stats = self.stats.get(user_id)
+        if stats is None:
+            raise RuntimeError(
+                f"user_stats missing for user_id={user_id}; cannot update stats."
+            )
 
         if following_step != 0:
-            stat.following_count = max(0, stat.following_count + following_step)
+            stats.following_count = max(0, stats.following_count + following_step)
         if followers_step != 0:
-            stat.followers_count = max(0, stat.followers_count + followers_step)
-        return stat
+            stats.followers_count = max(0, stats.followers_count + followers_step)
+        return stats
 
-    def delete_stats(self, user_id: str) -> bool:
-        if user_id in self.stats:
-            del self.stats[user_id]
-            return True
-        return False
-
-    def get_by_user_id(self, user_id: str) -> Optional[UserStatsDto]:
-        return self.stats.get(user_id)
-
-    def update_following(self, user_id: str, step: int = 1) -> UserStatsDto:
-        return self.update_stats(user_id, following_step=step)
-
-    def update_followers(self, user_id: str, step: int = 1) -> UserStatsDto:
-        return self.update_stats(user_id, followers_step=step)
-
-    def delete_by_user_id(self, user_id: str) -> bool:
-        return self.delete_stats(user_id)
+    def get_user_profile(self, user_id: str) -> Optional[UserStatsWithUserOut]:
+        user = self.find_user(uid=user_id)
+        if not user:
+            return None
+        stats = self.get_stats(user_id)
+        return UserStatsWithUserOut(user_info=user, user_stats=stats)
