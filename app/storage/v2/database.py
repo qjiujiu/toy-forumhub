@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.storage.v2.user.SQLAlchemyUserRepository import SQLAlchemyUserRepository
 from app.storage.v2.post.SQLAlchemyPostRepository import SQLAlchemyPostRepository
 from app.storage.v2.comment.SQLAlchemyCommentRepository import SQLAlchemyCommentRepository
-from app.storage.follow.SQLAlchemyFollowRepository import SQLAlchemyFollowRepository
-from app.storage.like.SQLAlchemyLikeRepository import SQLAlchemyLikeRepository
+from app.storage.v2.follow.SQLAlchemyFollowRepository import SQLAlchemyFollowRepository
+from app.storage.v2.like.SQLAlchemyLikeRepository import SQLAlchemyLikeRepository
 
 from fastapi import Depends
 
