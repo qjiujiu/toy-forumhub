@@ -4,7 +4,7 @@ from tests.mock.mock_comment import MockCommentRepository
 from tests.mock.mock_post import MockPostRepository
 from tests.mock.mock_user import MockUserRepository
 
-from app.schemas.v2.comment import CommentCreate, CommentQuery, StatusUpdate
+from app.schemas.v2.comment import CommentCreate, CommentQueryDTO, StatusUpdate
 from app.schemas.v2.post import PostDto, PostCreate
 from app.schemas.v2.user import UserCreate, UserInfoDto, UserUpdateDto
 from app.models.v2.user import UserRole
@@ -81,7 +81,7 @@ class TestCommentService:
                 CommentCreate(post_id=post.pid, author_id=author.uid, content=f"c{i}"),
                 to_dict=False,
             )
-        result = comment_svc.get_comments(CommentQuery(post_id=post.pid), page=0, page_size=10)
+        result = comment_svc.get_comments_by_post_id(post_id=post.pid, page=0, page_size=10)
         assert result.total == 3
         assert result.count == 3
 

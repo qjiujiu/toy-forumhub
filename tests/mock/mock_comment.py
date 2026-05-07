@@ -16,7 +16,7 @@ from app.schemas.v2.comment import (
     CommentOut,
     BatchCommentsOut,
     StatusUpdate,
-    CommentQuery,
+    CommentQueryDTO,
     CommentUpdate,
 )
 from app.schemas.v2.comment_content import CommentContentOut
@@ -105,7 +105,7 @@ class MockCommentRepository:
     def get_by_cid(self, cid: str) -> Optional[CommentOut]:
         return self._build_out(cid)
 
-    def get_comments(self, query: CommentQuery, page: int = 0, page_size: int = 20) -> BatchCommentsOut:
+    def get_comments(self, query: CommentQueryDTO, page: int = 0, page_size: int = 20) -> BatchCommentsOut:
         matched = []
         for c in self.comments.values():
             if c.get("deleted"):
@@ -143,10 +143,10 @@ class MockCommentRepository:
         c = self.comments.get(cid)
         if not c or c.get("deleted"):
             return False
-        if data.like_count_delta:
-            c["like_count"] = max(0, c["like_count"] + data.like_count_delta)
-        if data.comment_count_delta:
-            c["comment_count"] = max(0, c["comment_count"] + data.comment_count_delta)
+        if data.like_count is not None:
+            c["like_count"] = max(0, c["like_count"] + data.like_count)
+        if data.comment_count is not None:
+            c["comment_count"] = max(0, c["comment_count"] + data.comment_count)
         return True
 
     # ========== 删 ==========

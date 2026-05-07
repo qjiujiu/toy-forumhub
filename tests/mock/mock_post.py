@@ -128,6 +128,17 @@ class MockPostRepository:
 
     # ========== 改 ==========
 
+    def update_stats(self, pid: str, data: PostStatsDto) -> bool:
+        """增量更新帖子统计，delta 语义，计数不下溢。"""
+        stats = self.stats.get(pid)
+        if not stats:
+            return False
+        if data.like_count is not None:
+            stats.like_count = max(0, (stats.like_count or 0) + data.like_count)
+        if data.comment_count is not None:
+            stats.comment_count = max(0, (stats.comment_count or 0) + data.comment_count)
+        return True
+
     def update(self, pid: str, data: PostDto) -> bool:
         post = self.posts.get(pid)
         if not post or post.get("deleted"):
