@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from app.schemas.v2.comment import CommentCreate, CommentOut, BatchCommentsOut, CommentQuery, StatusUpdate
+from app.schemas.v2.comment import CommentCreate, CommentOut, BatchCommentsOut, CommentQueryDTO, StatusUpdate
 from app.schemas.v2.post import PostOut
 from app.service.v2.comment_svc import CommentService
 
@@ -52,14 +52,63 @@ def get_comment(
     return BizResponse(data=comment)
 
 
-@comments_router.get("/", response_model=BatchCommentsOut)
-def get_comments(
-    query : CommentQuery,
+@comments_router.get("/post/{post_id}", response_model=BatchCommentsOut)
+def get_comments_by_post(
+    post_id: str,
     page: int = 0,
     page_size: int = 20,
     comment_service: CommentService = Depends(get_comment_service),
 ):
-    result = comment_service.get_comments(query, page, page_size)
+    """按帖子 ID 获取评论列表。"""
+    result = comment_service.get_comments_by_post_id(post_id, page, page_size)
+    return BizResponse(data=result)
+
+
+@comments_router.get("/author/{author_id}", response_model=BatchCommentsOut)
+def get_comments_by_author(
+    author_id: str,
+    page: int = 0,
+    page_size: int = 20,
+    comment_service: CommentService = Depends(get_comment_service),
+):
+    """按作者 ID 获取评论列表。"""
+    result = comment_service.get_comments_by_author_id(author_id, page, page_size)
+    return BizResponse(data=result)
+
+
+@comments_router.get("/root/{root_id}", response_model=BatchCommentsOut)
+def get_comments_by_root(
+    root_id: str,
+    page: int = 0,
+    page_size: int = 20,
+    comment_service: CommentService = Depends(get_comment_service),
+):
+    """按根评论 ID 获取楼中楼完整线程。"""
+    result = comment_service.get_comments_by_root_id(root_id, page, page_size)
+    return BizResponse(data=result)
+
+
+@comments_router.get("/parent/{parent_id}", response_model=BatchCommentsOut)
+def get_comments_by_parent(
+    parent_id: str,
+    page: int = 0,
+    page_size: int = 20,
+    comment_service: CommentService = Depends(get_comment_service),
+):
+    """按父评论 ID 获取直接子回复。"""
+    result = comment_service.get_comments_by_parent_id(parent_id, page, page_size)
+    return BizResponse(data=result)
+
+
+@comments_router.get("/top", response_model=BatchCommentsOut)
+def get_comments_top(
+    post_id: str,
+    page: int = 0,
+    page_size: int = 20,
+    comment_service: CommentService = Depends(get_comment_service),
+):
+    """获取某帖子下的一级评论（parent_id IS NULL）。"""
+    result = comment_service.get_comments_by_parent_id(None, page, page_size)
     return BizResponse(data=result)
 
 
