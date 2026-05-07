@@ -132,6 +132,24 @@ class SQLAlchemyPostRepository(IPostRepository):
                 setattr(post, field, value)
         return True
 
+    def update_stats(self, pid: str, data: PostStatsDto) -> bool:
+        """增量更新帖子统计字段（post_stats 表），计数不下溢。"""
+        stats = (
+            self.db.query(PostStats)
+            .filter(PostStats.post_id == pid)
+            .first()
+        )
+        if not stats:
+            return False
+
+        update_data = data.model_dump(exclude_none=True)
+        with transaction(self.db):
+            for field, delta in update_data.items():
+                if delta:
+                    current = getattr(stats, field) or 0
+                    setattr(stats, field, max(0, current + delta))
+        return True
+
     def update_content(self, pid: str, data: PostContentUpdate) -> bool:
         post_content = (
             self.db.query(PostContent)
