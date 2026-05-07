@@ -9,6 +9,7 @@ from app.schemas.v2.post import (
     TopPostOut,
 )
 from app.schemas.v2.post_content import PostContentUpdate
+from app.schemas.v2.post_stats import PostStatsDto
 
 
 class IPostRepository(Protocol):
@@ -83,7 +84,17 @@ class IPostRepository(Protocol):
         - publish_status: 发布状态（0=草稿, 1=已发布）
         - 业务逻辑应在业务层控制
         """
-        pass
+        ...
+
+    def update_stats(self, pid: str, data: PostStatsDto) -> bool:
+        """
+        增量更新帖子统计字段（post_stats 表）
+        - like_count: 点赞数增量（+1 或 -1）
+        - comment_count: 评论数增量（+1 或 -1）
+        - 计数不应被更新到负数
+        - 返回是否更新成功
+        """
+        ...
 
     def update_content(self, pid: str, data: PostContentUpdate) -> bool:
         """
