@@ -1,6 +1,7 @@
 from fastapi import FastAPI
-from app.routers import users, follows, posts, comments, likes
-
+# from app.api import users, follows, posts, comments, likes
+from app.api import follows, posts, comments, likes
+from app.api.v2 import users
 app = FastAPI(title="Forum Management System")
 
 # 注册路由

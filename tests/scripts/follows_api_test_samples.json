@@ -1,0 +1,556 @@
+{
+  "version": "1.0",
+  "description": "app/api/v2/follows.py 所有接口的真实测试样例",
+  "base_url": "http://localhost:8000",
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/follows/",
+      "summary": "关注用户",
+      "cases": [
+        {
+          "scenario": "成功关注其他用户",
+          "request": {
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "followed_user_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": true
+          }
+        },
+        {
+          "scenario": "不能关注自己（FollowYourselfError）",
+          "request": {
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "followed_user_id": "221d559c-c349-497b-a40e-362717e0d1b5"
+            }
+          },
+          "expected_response": {
+            "code": 400,
+            "msg": "User '221d559c-c349-497b-a40e-362717e0d1b5' cannot follow themselves.",
+            "data": false
+          }
+        },
+        {
+          "scenario": "重复关注同一用户（AlreadyFollowingError）",
+          "request": {
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "followed_user_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 400,
+            "msg": "User '221d559c-c349-497b-a40e-362717e0d1b5' is already following 'b2c3d4e5-f6a7-8901-bcde-f12345678901'.",
+            "data": false
+          }
+        },
+        {
+          "scenario": "关注不存在的用户（UserNotFound）",
+          "request": {
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "followed_user_id": "z9999999-9999-9999-9999-999999999999"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "User with id 'z9999999-9999-9999-9999-999999999999' not found.",
+            "data": false
+          }
+        },
+        {
+          "scenario": "关注者不存在（UserNotFound）",
+          "request": {
+            "body": {
+              "user_id": "z9999999-9999-9999-9999-999999999999",
+              "followed_user_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "User with id 'z9999999-9999-9999-9999-999999999999' not found.",
+            "data": false
+          }
+        },
+        {
+          "scenario": "缺少必填字段 followed_user_id",
+          "request": {
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5"
+            }
+          },
+          "expected_response": {
+            "code": 422,
+            "detail": [
+              {
+                "loc": ["body", "followed_user_id"],
+                "msg": "Field required",
+                "type": "missing"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/follows/",
+      "summary": "取消关注（软删除）",
+      "cases": [
+        {
+          "scenario": "成功取消已存在的关注",
+          "request": {
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "followed_user_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": true
+          }
+        },
+        {
+          "scenario": "取消不存在的关注记录（NotFollowingError）",
+          "request": {
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "followed_user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012"
+            }
+          },
+          "expected_response": {
+            "code": 400,
+            "msg": "User '221d559c-c349-497b-a40e-362717e0d1b5' is not following 'c3d4e5f6-a7b8-9012-cdef-123456789012'.",
+            "data": false
+          }
+        },
+        {
+          "scenario": "重复取消已取消的关注（NotFollowingError）",
+          "request": {
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "followed_user_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 400,
+            "msg": "User '221d559c-c349-497b-a40e-362717e0d1b5' is not following 'b2c3d4e5-f6a7-8901-bcde-f12345678901'.",
+            "data": false
+          }
+        },
+        {
+          "scenario": "缺少必填字段 user_id",
+          "request": {
+            "body": {
+              "followed_user_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 422,
+            "detail": [
+              {
+                "loc": ["body", "user_id"],
+                "msg": "Field required",
+                "type": "missing"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/follows/hard",
+      "summary": "硬删除关注记录（管理员操作）",
+      "cases": [
+        {
+          "scenario": "管理员成功硬删除关注记录",
+          "request": {
+            "query_params": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001"
+            },
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "followed_user_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": true
+          }
+        },
+        {
+          "scenario": "非管理员尝试硬删除（AdminPermissionDenied）",
+          "request": {
+            "query_params": {
+              "admin_uid": "221d559c-c349-497b-a40e-362717e0d1b5"
+            },
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "followed_user_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 403,
+            "msg": "user 221d559c-c349-497b-a40e-362717e0d1b5 is not an admin",
+            "data": false
+          }
+        },
+        {
+          "scenario": "硬删除不存在的关注记录（NotFollowingError）",
+          "request": {
+            "query_params": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001"
+            },
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "followed_user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012"
+            }
+          },
+          "expected_response": {
+            "code": 400,
+            "msg": "User '221d559c-c349-497b-a40e-362717e0d1b5' is not following 'c3d4e5f6-a7b8-9012-cdef-123456789012'.",
+            "data": false
+          }
+        },
+        {
+          "scenario": "管理员用户不存在（UserNotFound）",
+          "request": {
+            "query_params": {
+              "admin_uid": "z9999999-9999-9999-9999-999999999999"
+            },
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "followed_user_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "User with id 'z9999999-9999-9999-9999-999999999999' not found.",
+            "data": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/follows/followings/{user_id}",
+      "summary": "获取某用户的关注列表（他关注了谁）",
+      "cases": [
+        {
+          "scenario": "成功获取用户的关注列表",
+          "request": {
+            "path_params": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5"
+            },
+            "query_params": {
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 2,
+              "count": 2,
+              "items": [
+                {
+                  "user": {
+                    "uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+                    "user_info": {
+                      "username": "李四",
+                      "phone": "13800138002",
+                      "email": null,
+                      "avatar_url": null,
+                      "bio": null,
+                      "role": 0,
+                      "status": 0
+                    },
+                    "user_data": {
+                      "last_login_at": "2026-05-12T10:30:00",
+                      "created_at": "2026-05-12T10:30:00",
+                      "updated_at": "2026-05-12T10:30:00",
+                      "deleted_at": null
+                    }
+                  },
+                  "is_mutual": false
+                },
+                {
+                  "user": {
+                    "uid": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+                    "user_info": {
+                      "username": "王五",
+                      "phone": "13800138003",
+                      "email": null,
+                      "avatar_url": null,
+                      "bio": null,
+                      "role": 0,
+                      "status": 0
+                    },
+                    "user_data": {
+                      "last_login_at": "2026-05-12T11:00:00",
+                      "created_at": "2026-05-12T11:00:00",
+                      "updated_at": "2026-05-12T11:00:00",
+                      "deleted_at": null
+                    }
+                  },
+                  "is_mutual": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "用户没有关注任何人时返回空列表",
+          "request": {
+            "path_params": {
+              "user_id": "d4e5f6a7-b8c9-0123-defa-234567890123"
+            },
+            "query_params": {
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 0,
+              "count": 0,
+              "items": []
+            }
+          }
+        },
+        {
+          "scenario": "分页测试：获取第一页（每页1条）",
+          "request": {
+            "path_params": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5"
+            },
+            "query_params": {
+              "page": 0,
+              "page_size": 1
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 2,
+              "count": 1,
+              "items": [
+                {
+                  "user": {
+                    "uid": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+                    "user_info": {
+                      "username": "王五",
+                      "phone": "13800138003",
+                      "email": null,
+                      "avatar_url": null,
+                      "bio": null,
+                      "role": 0,
+                      "status": 0
+                    },
+                    "user_data": {
+                      "last_login_at": "2026-05-12T11:00:00",
+                      "created_at": "2026-05-12T11:00:00",
+                      "updated_at": "2026-05-12T11:00:00",
+                      "deleted_at": null
+                    }
+                  },
+                  "is_mutual": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "翻页超出范围返回空列表",
+          "request": {
+            "path_params": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5"
+            },
+            "query_params": {
+              "page": 100,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 2,
+              "count": 0,
+              "items": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/follows/followers/{user_id}",
+      "summary": "获取某用户的粉丝列表（谁关注了他）",
+      "cases": [
+        {
+          "scenario": "成功获取用户的粉丝列表",
+          "request": {
+            "path_params": {
+              "user_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            },
+            "query_params": {
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 2,
+              "count": 2,
+              "items": [
+                {
+                  "user": {
+                    "uid": "221d559c-c349-497b-a40e-362717e0d1b5",
+                    "user_info": {
+                      "username": "张三",
+                      "phone": "13800138001",
+                      "email": null,
+                      "avatar_url": null,
+                      "bio": null,
+                      "role": 0,
+                      "status": 0
+                    },
+                    "user_data": {
+                      "last_login_at": "2026-05-12T10:30:00",
+                      "created_at": "2026-05-12T10:30:00",
+                      "updated_at": "2026-05-12T10:30:00",
+                      "deleted_at": null
+                    }
+                  },
+                  "is_mutual": false
+                },
+                {
+                  "user": {
+                    "uid": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+                    "user_info": {
+                      "username": "王五",
+                      "phone": "13800138003",
+                      "email": null,
+                      "avatar_url": null,
+                      "bio": null,
+                      "role": 0,
+                      "status": 0
+                    },
+                    "user_data": {
+                      "last_login_at": "2026-05-12T11:00:00",
+                      "created_at": "2026-05-12T11:00:00",
+                      "updated_at": "2026-05-12T11:00:00",
+                      "deleted_at": null
+                    }
+                  },
+                  "is_mutual": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "用户没有粉丝时返回空列表",
+          "request": {
+            "path_params": {
+              "user_id": "d4e5f6a7-b8c9-0123-defa-234567890123"
+            },
+            "query_params": {
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 0,
+              "count": 0,
+              "items": []
+            }
+          }
+        },
+        {
+          "scenario": "分页测试：获取第一页（每页1条）",
+          "request": {
+            "path_params": {
+              "user_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            },
+            "query_params": {
+              "page": 0,
+              "page_size": 1
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 2,
+              "count": 1,
+              "items": [
+                {
+                  "user": {
+                    "uid": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+                    "user_info": {
+                      "username": "王五",
+                      "phone": "13800138003",
+                      "email": null,
+                      "avatar_url": null,
+                      "bio": null,
+                      "role": 0,
+                      "status": 0
+                    },
+                    "user_data": {
+                      "last_login_at": "2026-05-12T11:00:00",
+                      "created_at": "2026-05-12T11:00:00",
+                      "updated_at": "2026-05-12T11:00:00",
+                      "deleted_at": null
+                    }
+                  },
+                  "is_mutual": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "翻页超出范围返回空列表",
+          "request": {
+            "path_params": {
+              "user_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            },
+            "query_params": {
+              "page": 100,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 2,
+              "count": 0,
+              "items": []
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
