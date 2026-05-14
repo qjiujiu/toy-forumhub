@@ -15,15 +15,17 @@ from app.storage.v2.database import (
 from app.storage.v2.follow.follow_interface import IFollowRepository
 from app.storage.v2.user.user_interface import IUserRepository
 
-from app.core.exceptions import (
+from app.kit.exceptions import (
     AlreadyFollowingError,
     FollowYourselfError,
     NotFollowingError,
     UserNotFound,
     AdminPermissionDenied,
+    HardDeleteFollowRequiresSoftDeleteError,
 )
-from app.core.logx import logger
-from app.core.biz_response import BizResponse
+import logging
+logger = logging.getLogger(__name__)
+from app.schemas.v2.biz_response import BizResponse
 
 
 def get_follow_service(
@@ -79,7 +81,7 @@ def unfollow(
         return BizResponse(data=False, msg=str(e), status_code=500)
 
 
-@follows_router.delete("/hard")
+@follows_router.delete("/hard/{admin_uid}")
 def hard_unfollow(
     admin_uid: str,
     data: FollowCancel,
@@ -95,6 +97,8 @@ def hard_unfollow(
         return BizResponse(data=False, msg=str(e), status_code=403)
     except UserNotFound as e:
         return BizResponse(data=False, msg=str(e), status_code=404)
+    except HardDeleteFollowRequiresSoftDeleteError as e:
+        return BizResponse(data=False, msg=str(e), status_code=400)
     except NotFollowingError as e:
         return BizResponse(data=False, msg=str(e), status_code=400)
     except Exception as e:

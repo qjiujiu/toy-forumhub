@@ -14,9 +14,9 @@ from app.schemas.v2.like import (
 
 from app.storage.v2.like.like_interface import ILikeRepository
 
-from app.core.time import now_utc8
+from app.kit.time import now_utc8
 from app.core.db import transaction
-from app.core.exceptions import AlreadyLikedError, NotLikedError
+from app.kit.exceptions import AlreadyLikedError, NotLikedError
 
 
 class SQLAlchemyLikeRepository(ILikeRepository):

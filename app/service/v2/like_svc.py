@@ -18,8 +18,9 @@ from app.storage.v2.like.like_interface import ILikeRepository
 from app.storage.v2.post.post_interface import IPostRepository
 from app.storage.v2.comment.comment_interface import ICommentRepository
 
-from app.core.logx import logger
-from app.core.exceptions import AlreadyLikedError, NotLikedError
+import logging
+logger = logging.getLogger(__name__)
+from app.kit.exceptions import AlreadyLikedError, NotLikedError
 
 
 class LikeService:

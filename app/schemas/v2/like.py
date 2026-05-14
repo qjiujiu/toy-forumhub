@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.like import LikeTargetType  
+from app.models.v2.like import LikeTargetType  
 
 
 class LikeCreate(BaseModel):

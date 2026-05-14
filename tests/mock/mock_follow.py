@@ -15,10 +15,10 @@ from app.schemas.v2.follow import (
     FollowOut,
     BatchFollowsOut,
 )
-from app.schemas.user import UserOut, UserStatus
-from app.models.user import UserRole
+from app.schemas.v2.user import UserOut, UserInfoDto, UserTimeDto
+from app.models.v2.user import UserRole, UserStatus
 
-from app.core.exceptions import AlreadyFollowingError, NotFollowingError
+from app.kit.exceptions import AlreadyFollowingError, NotFollowingError
 
 
 def _now():
@@ -28,9 +28,12 @@ def _now():
 def _make_user_out(uid: str, username: str = "") -> UserOut:
     return UserOut(
         uid=uid,
-        username=username or f"user_{uid[:8]}",
-        role=UserRole.NORMAL_USER,
-        status=UserStatus.NORMAL.value,
+        user_info=UserInfoDto(
+            username=username or f"user_{uid[:8]}",
+            role=UserRole.NORMAL_USER,
+            status=UserStatus.NORMAL,
+        ),
+        user_data=UserTimeDto(),
     )
 
 
@@ -46,16 +49,11 @@ class MockFollowRepository:
         return cls(user_repo=user_repo)
 
     def _lookup_user(self, uid: str) -> UserOut:
-        """用 user_repo 查找用户，将 v2 UserOut 转为旧版 UserOut 扁平结构。"""
+        """用 user_repo 查找用户，直接返回 v2 UserOut（已是嵌套结构）。"""
         if self._user_repo:
             v2_user = self._user_repo.find_user(uid=uid)
             if v2_user:
-                return UserOut(
-                    uid=v2_user.uid,
-                    username=v2_user.user_info.username or "",
-                    role=v2_user.user_info.role or UserRole.NORMAL_USER,
-                    status=v2_user.user_info.status or UserStatus.NORMAL.value,
-                )
+                return v2_user
         return _make_user_out(uid=uid)
 
     # ==================== C ====================

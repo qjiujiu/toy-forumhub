@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from app.models.v2.base import Base
 import uuid
 from enum import IntEnum 
-from app.core.time import now_utc8
+from app.kit.time import now_utc8
 # 点赞目标类型
 class LikeTargetType(IntEnum):
     POST = 0  # 帖子

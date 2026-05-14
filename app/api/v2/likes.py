@@ -19,9 +19,10 @@ from app.storage.v2.like.like_interface import ILikeRepository
 from app.storage.v2.post.post_interface import IPostRepository
 from app.storage.v2.comment.comment_interface import ICommentRepository
 
-from app.core.exceptions import AlreadyLikedError, NotLikedError
-from app.core.logx import logger
-from app.core.biz_response import BizResponse
+from app.kit.exceptions import AlreadyLikedError, NotLikedError
+import logging
+logger = logging.getLogger(__name__)
+from app.schemas.v2.biz_response import BizResponse
 
 
 def get_like_service(
@@ -77,7 +78,7 @@ def cancel_like(
         return BizResponse(data=False, msg=str(e), status_code=500)
 
 
-@likes_router.get("/user", response_model=BatchLikesOut)
+@likes_router.get("/user/id/{user_id}/type/{target_type}", response_model=BatchLikesOut)
 def get_user_likes(
     user_id: str,
     target_type: int,
@@ -100,7 +101,7 @@ def get_user_likes(
         return BizResponse(data=None, msg=str(e), status_code=500)
 
 
-@likes_router.get("/target", response_model=BatchLikesOut)
+@likes_router.get("/target/id/{target_id}/type/{target_type}", response_model=BatchLikesOut)
 def get_target_likes(
     target_type: int,
     target_id: str,

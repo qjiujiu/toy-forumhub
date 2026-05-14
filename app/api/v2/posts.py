@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Depends
 
 from app.schemas.v2.post import PostCreate, PostOut, BatchPostsOut, PostUpdate, TopPostsResponse
@@ -11,10 +12,11 @@ from app.storage.v2.database import (
 from app.storage.v2.post.post_interface import IPostRepository
 from app.storage.v2.user.user_interface import IUserRepository
 
-from app.core.exceptions import PostNotFound, ForbiddenAction, AdminPermissionDenied
+from app.kit.exceptions import PostNotFound, ForbiddenAction, AdminPermissionDenied
 
-from app.core.logx import logger
-from app.core.biz_response import BizResponse
+import logging
+logger = logging.getLogger(__name__)
+from app.schemas.v2.biz_response import BizResponse
 
 
 def get_post_service(
@@ -39,6 +41,22 @@ def create_post(
         return BizResponse(data=None, msg=str(e), status_code=500)
 
 
+@posts_router.get("/", response_model=BatchPostsOut)
+def get_all_posts(
+    page: int = 0,
+    page_size: int = 10,
+    post_service: PostService = Depends(get_post_service),
+):
+    """
+    分页获取所有帖子（按创建时间倒序）
+    """
+    try:
+        result = post_service.get_all_posts(page=page, page_size=page_size, to_dict=True)
+        return BizResponse(data=result)
+    except Exception as e:
+        return BizResponse(data=list(), msg=str(e), status_code=500)
+
+
 @posts_router.get("/id/{pid}", response_model=PostOut)
 def get_post(
     pid: str,
@@ -53,9 +71,10 @@ def get_post(
         return BizResponse(data=None, msg=str(e), status_code=500)
 
 
-@posts_router.get("/author/{author_id}", response_model=BatchPostsOut)
+@posts_router.get("/author/{author_id}/{current_uid}", response_model=BatchPostsOut)
 def get_posts_by_author(
     author_id: str,
+    current_uid: Optional[str] = None,
     page: int = 0,
     page_size: int = 10,
     post_service: PostService = Depends(get_post_service),
@@ -63,6 +82,7 @@ def get_posts_by_author(
     try:
         result = post_service.get_posts_by_author(
             author_id=author_id,
+            current_uid=current_uid,
             page=page,
             page_size=page_size,
             to_dict=True,
@@ -72,11 +92,11 @@ def get_posts_by_author(
         return BizResponse(data=list(), msg=str(e), status_code=500)
 
 
-@posts_router.put("/content/{pid}", response_model=PostOut)
+@posts_router.put("/content/{pid}/{uid}", response_model=PostOut)
 def update_post_content(
     pid: str,
-    body: PostContentUpdate,
     uid: str,
+    body: PostContentUpdate,
     post_service: PostService = Depends(get_post_service),
 ):
     try:
@@ -90,11 +110,11 @@ def update_post_content(
         return BizResponse(data=None, msg=str(e), status_code=500)
 
 
-@posts_router.put("/visibility/{pid}", response_model=PostOut)
+@posts_router.put("/visibility/{pid}/{uid}", response_model=PostOut)
 def update_post_visibility(
     pid: str,
-    body: PostUpdate,
     uid: str,
+    body: PostUpdate,
     post_service: PostService = Depends(get_post_service),
 ):
     try:
@@ -108,7 +128,7 @@ def update_post_visibility(
         return BizResponse(data=None, msg=str(e), status_code=500)
 
 
-@posts_router.put("/publish/{pid}", response_model=PostOut)
+@posts_router.put("/publish/{pid}/{uid}", response_model=PostOut)
 def publish_post(
     pid: str,
     uid: str,
@@ -125,7 +145,7 @@ def publish_post(
         return BizResponse(data=None, msg=str(e), status_code=500)
 
 
-@posts_router.delete("/soft/{pid}")
+@posts_router.delete("/soft/{pid}/{uid}")
 def soft_delete_post(
     pid: str,
     uid: str,
@@ -142,7 +162,7 @@ def soft_delete_post(
         return BizResponse(data=False, msg=str(e), status_code=500)
 
 
-@posts_router.delete("/hard/{pid}")
+@posts_router.delete("/hard/{pid}/{admin_uid}")
 def hard_delete_post(
     pid: str,
     admin_uid: str,
@@ -159,7 +179,7 @@ def hard_delete_post(
         return BizResponse(data=False, msg=str(e), status_code=500)
 
 
-@posts_router.put("/ban/{pid}", response_model=PostOut)
+@posts_router.put("/ban/{pid}/{admin_uid}", response_model=PostOut)
 def ban_post(
     pid: str,
     admin_uid: str,

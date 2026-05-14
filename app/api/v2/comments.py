@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from app.schemas.v2.comment import CommentCreate, CommentOut, BatchCommentsOut, CommentQueryDTO, StatusUpdate
+from app.schemas.v2.comment import CommentCreate, CommentOut, BatchCommentsOut, CommentQueryDTO
 from app.schemas.v2.post import PostOut
 from app.service.v2.comment_svc import CommentService
 
@@ -13,9 +13,10 @@ from app.storage.v2.comment.comment_interface import ICommentRepository
 from app.storage.v2.post.post_interface import IPostRepository
 from app.storage.v2.user.user_interface import IUserRepository
 
-from app.core.logx import logger
-from app.core.biz_response import BizResponse
-from app.core.exceptions import CommentNotFound, AdminPermissionDenied, UserNotFound
+import logging
+logger = logging.getLogger(__name__)
+from app.schemas.v2.biz_response import BizResponse
+from app.kit.exceptions import CommentNotFound, AdminPermissionDenied, UserNotFound, ForbiddenAction, CommentNotSoftDeletedError
 
 
 def get_comment_service(
@@ -100,7 +101,7 @@ def get_comments_by_parent(
     return BizResponse(data=result)
 
 
-@comments_router.get("/top", response_model=BatchCommentsOut)
+@comments_router.get("/top/{post_id}", response_model=BatchCommentsOut)
 def get_comments_top(
     post_id: str,
     page: int = 0,
@@ -108,21 +109,21 @@ def get_comments_top(
     comment_service: CommentService = Depends(get_comment_service),
 ):
     """获取某帖子下的一级评论（parent_id IS NULL）。"""
-    result = comment_service.get_comments_by_parent_id(None, page, page_size)
+    result = comment_service.get_top_comments_by_post(post_id, page, page_size)
     return BizResponse(data=result)
 
 
-@comments_router.patch("/id/{cid}")
-def update_comment(
+@comments_router.patch("/ban/id/{cid}/admin/{admin_uid}")
+def ban_comment(
     cid: str,
-    data: StatusUpdate,
     admin_uid: str,
     comment_service: CommentService = Depends(get_comment_service),
 ):
+    """封禁评论：将 review_status 设为拒绝，评论不再展示。"""
     try:
-        success = comment_service.update_comment(admin_uid, cid, data)
+        success = comment_service.ban_comment(admin_uid, cid)
         if not success:
-            return BizResponse(data=False, msg="update failed", status_code=500)
+            return BizResponse(data=False, msg="ban failed", status_code=500)
         return BizResponse(data=True)
     except AdminPermissionDenied as e:
         return BizResponse(data=None, msg=str(e), status_code=403)
@@ -130,18 +131,60 @@ def update_comment(
         return BizResponse(data=False, msg=str(e), status_code=500)
 
 
-@comments_router.delete("/id/{cid}")
-def delete_comment(
+@comments_router.patch("/unban/id/{cid}/admin/{admin_uid}")
+def unban_comment(
     cid: str,
+    admin_uid: str,
     comment_service: CommentService = Depends(get_comment_service),
 ):
-    success = comment_service.delete_comment(cid)
-    if not success:
-        return BizResponse(data=False, msg="delete failed", status_code=500)
-    return BizResponse(data=True)
+    """解封评论：将 review_status 设为通过，评论恢复正常展示。"""
+    try:
+        success = comment_service.unban_comment(admin_uid, cid)
+        if not success:
+            return BizResponse(data=False, msg="unban failed", status_code=500)
+        return BizResponse(data=True)
+    except AdminPermissionDenied as e:
+        return BizResponse(data=None, msg=str(e), status_code=403)
+    except Exception as e:
+        return BizResponse(data=False, msg=str(e), status_code=500)
 
 
-@comments_router.delete("/hard/{cid}")
+@comments_router.patch("/fold/id/{cid}/admin/{admin_uid}")
+def fold_comment(
+    cid: str,
+    admin_uid: str,
+    comment_service: CommentService = Depends(get_comment_service),
+):
+    """折叠评论：将 status 设为折叠，评论被折叠隐藏。"""
+    try:
+        success = comment_service.fold_comment(admin_uid, cid)
+        if not success:
+            return BizResponse(data=False, msg="fold failed", status_code=500)
+        return BizResponse(data=True)
+    except AdminPermissionDenied as e:
+        return BizResponse(data=None, msg=str(e), status_code=403)
+    except Exception as e:
+        return BizResponse(data=False, msg=str(e), status_code=500)
+
+
+@comments_router.delete("/id/{cid}/user/{uid}")
+def delete_comment(
+    cid: str,
+    uid: str,
+    comment_service: CommentService = Depends(get_comment_service),
+):
+    try:
+        success = comment_service.delete_comment(uid, cid)
+        if not success:
+            return BizResponse(data=False, msg="delete failed", status_code=500)
+        return BizResponse(data=True)
+    except ForbiddenAction as e:
+        return BizResponse(data=None, msg=str(e), status_code=403)
+    except Exception as e:
+        return BizResponse(data=None, msg=str(e), status_code=500)
+
+
+@comments_router.delete("/hard/{cid}/admin/{admin_uid}")
 def hard_delete_comment(
     cid: str,
     admin_uid: str,
@@ -152,6 +195,8 @@ def hard_delete_comment(
         return BizResponse(data=ok)
     except CommentNotFound as e:
         return BizResponse(data=None, msg=str(e), status_code=404)
+    except CommentNotSoftDeletedError as e:
+        return BizResponse(data=None, msg=str(e), status_code=400)
     except AdminPermissionDenied as e:
         return BizResponse(data=None, msg=str(e), status_code=403)
     except Exception as e:

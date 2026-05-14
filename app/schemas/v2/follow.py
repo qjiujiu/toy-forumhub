@@ -3,7 +3,7 @@ from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel
-from app.schemas.user import UserOut
+from app.schemas.v2.user import UserOut
 
 
 class FollowDto(BaseModel):

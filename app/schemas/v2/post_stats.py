@@ -13,6 +13,7 @@ class PostStatsDto(BaseModel):
     like_count: Optional[int] = None
     comment_count: Optional[int] = None
 
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 class PostStatsCreate(BaseModel):
     """

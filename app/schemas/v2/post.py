@@ -12,6 +12,8 @@ class PostDto(BaseModel):
     visibility: Optional[PostVisibility] = None
     publish_status: Optional[PostPublishStatus] = None
 
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
 # 创建一篇帖子
 class PostCreate(BaseModel):
     """

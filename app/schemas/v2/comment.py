@@ -3,10 +3,9 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.comment import CommentStatus, ReviewStatus
+from app.models.v2.comment import CommentStatus, ReviewStatus
 
-from app.schemas.comment_content import CommentContentOut
-from app.schemas.user import UserAllOut
+from app.schemas.v2.comment_content import CommentContentOut
 
 class CommentDto(BaseModel):
     """

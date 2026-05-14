@@ -49,9 +49,11 @@ class IPostRepository(Protocol):
         """
         pass
 
-    def get_by_author(self, author_id: str, page: int = 0, page_size: int = 10) -> BatchPostsOut:
+    def get_by_author(self, author_id: str, page: int = 0, page_size: int = 10, selector: str = "public") -> BatchPostsOut:
         """
-        根据 author_id 获取该作者的所有帖子（分页）
+        根据 author_id 获取该作者的帖子（分页）
+        - selector="public": 只返回所有人可见的已发布帖子
+        - selector="own":    返回作者自己的所有已发布帖子（含仅自己可见）
         - 过滤已软删除的帖子
         - 过滤 content 缺失的异常数据
         - 按 _id 倒序
