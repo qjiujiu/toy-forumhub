@@ -1,0 +1,805 @@
+{
+  "version": "1.0",
+  "description": "app/api/v2/comments.py 所有接口的真实测试样例",
+  "base_url": "http://localhost:8000",
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/comments/",
+      "summary": "创建评论",
+      "cases": [
+        {
+          "scenario": "成功创建一级评论（无 parent_id/root_id）",
+          "request": {
+            "body": {
+              "post_id": "p0000001-0000-0000-0000-000000000001",
+              "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "content": "好帖子，支持一下！"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "cid": "c0000001-0000-0000-0000-000000000001",
+              "post_id": "p0000001-0000-0000-0000-000000000001",
+              "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "comment_content": {
+                "ccid": "cc000001-0000-0000-0000-000000000001",
+                "comment_id": "c0000001-0000-0000-0000-000000000001",
+                "content": "好帖子，支持一下！",
+                "created_at": "2026-05-12T14:00:00",
+                "updated_at": "2026-05-12T14:00:00"
+              },
+              "parent_id": null,
+              "root_id": null,
+              "comment_count": 0,
+              "like_count": 0,
+              "status": 0,
+              "review_status": 0,
+              "reviewed_at": null,
+              "deleted_at": null
+            }
+          }
+        },
+        {
+          "scenario": "成功创建楼中楼回复（带 parent_id/root_id）",
+          "request": {
+            "body": {
+              "post_id": "p0000001-0000-0000-0000-000000000001",
+              "author_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+              "content": "同意楼上，确实不错",
+              "parent_id": "c0000001-0000-0000-0000-000000000001",
+              "root_id": "c0000001-0000-0000-0000-000000000001"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "cid": "c0000002-0000-0000-0000-000000000002",
+              "post_id": "p0000001-0000-0000-0000-000000000001",
+              "author_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+              "comment_content": {
+                "ccid": "cc000002-0000-0000-0000-000000000002",
+                "comment_id": "c0000002-0000-0000-0000-000000000002",
+                "content": "同意楼上，确实不错",
+                "created_at": "2026-05-12T14:05:00",
+                "updated_at": "2026-05-12T14:05:00"
+              },
+              "parent_id": "c0000001-0000-0000-0000-000000000001",
+              "root_id": "c0000001-0000-0000-0000-000000000001",
+              "comment_count": 0,
+              "like_count": 0,
+              "status": 0,
+              "review_status": 0,
+              "reviewed_at": null,
+              "deleted_at": null
+            }
+          }
+        },
+        {
+          "scenario": "创建评论时缺少必填字段（空 content）",
+          "request": {
+            "body": {
+              "post_id": "p0000001-0000-0000-0000-000000000001",
+              "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "content": ""
+            }
+          },
+          "expected_response": {
+            "code": 422,
+            "detail": [
+              {
+                "loc": ["body", "content"],
+                "msg": "Value error, Content cannot be empty",
+                "type": "value_error"
+              }
+            ]
+          }
+        },
+        {
+          "scenario": "给不存在的帖子创建评论",
+          "request": {
+            "body": {
+              "post_id": "p9999999-9999-9999-9999-999999999999",
+              "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "content": "这是一条评论"
+            }
+          },
+          "expected_response": {
+            "code": 500,
+            "msg": "post p9999999-9999-9999-9999-999999999999 not found.",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/comments/id/{cid}",
+      "summary": "根据 cid 获取评论详情",
+      "cases": [
+        {
+          "scenario": "查询存在的评论",
+          "request": {
+            "path_params": {
+              "cid": "c0000001-0000-0000-0000-000000000001"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "cid": "c0000001-0000-0000-0000-000000000001",
+              "post_id": "p0000001-0000-0000-0000-000000000001",
+              "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "comment_content": {
+                "ccid": "cc000001-0000-0000-0000-000000000001",
+                "comment_id": "c0000001-0000-0000-0000-000000000001",
+                "content": "好帖子，支持一下！",
+                "created_at": "2026-05-12T14:00:00",
+                "updated_at": "2026-05-12T14:00:00"
+              },
+              "parent_id": null,
+              "root_id": null,
+              "comment_count": 1,
+              "like_count": 3,
+              "status": 0,
+              "review_status": 0,
+              "reviewed_at": null,
+              "deleted_at": null
+            }
+          }
+        },
+        {
+          "scenario": "查询不存在的 cid",
+          "request": {
+            "path_params": {
+              "cid": "c9999999-9999-9999-9999-999999999999"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "comment not found",
+            "data": null
+          }
+        },
+        {
+          "scenario": "查询已软删除的评论",
+          "request": {
+            "path_params": {
+              "cid": "c0000003-0000-0000-0000-000000000003"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "comment not found",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/comments/post/{post_id}",
+      "summary": "按帖子 ID 分页获取评论列表",
+      "cases": [
+        {
+          "scenario": "成功获取帖子下的评论列表",
+          "request": {
+            "path_params": {
+              "post_id": "p0000001-0000-0000-0000-000000000001"
+            },
+            "query_params": {
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 3,
+              "count": 3,
+              "items": [
+                {
+                  "cid": "c0000001-0000-0000-0000-000000000001",
+                  "post_id": "p0000001-0000-0000-0000-000000000001",
+                  "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+                  "comment_content": {
+                    "ccid": "cc000001-0000-0000-0000-000000000001",
+                    "comment_id": "c0000001-0000-0000-0000-000000000001",
+                    "content": "好帖子，支持一下！",
+                    "created_at": "2026-05-12T14:00:00",
+                    "updated_at": "2026-05-12T14:00:00"
+                  },
+                  "parent_id": null,
+                  "root_id": null,
+                  "comment_count": 1,
+                  "like_count": 3,
+                  "status": 0,
+                  "review_status": 0,
+                  "reviewed_at": null,
+                  "deleted_at": null
+                },
+                {
+                  "cid": "c0000002-0000-0000-0000-000000000002",
+                  "post_id": "p0000001-0000-0000-0000-000000000001",
+                  "author_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+                  "comment_content": {
+                    "ccid": "cc000002-0000-0000-0000-000000000002",
+                    "comment_id": "c0000002-0000-0000-0000-000000000002",
+                    "content": "同意楼上，确实不错",
+                    "created_at": "2026-05-12T14:05:00",
+                    "updated_at": "2026-05-12T14:05:00"
+                  },
+                  "parent_id": "c0000001-0000-0000-0000-000000000001",
+                  "root_id": "c0000001-0000-0000-0000-000000000001",
+                  "comment_count": 0,
+                  "like_count": 1,
+                  "status": 0,
+                  "review_status": 0,
+                  "reviewed_at": null,
+                  "deleted_at": null
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "帖子下没有评论时返回空列表",
+          "request": {
+            "path_params": {
+              "post_id": "p0000002-0000-0000-0000-000000000002"
+            },
+            "query_params": {
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 0,
+              "count": 0,
+              "items": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/comments/author/{author_id}",
+      "summary": "按作者 ID 分页获取评论列表",
+      "cases": [
+        {
+          "scenario": "查询某作者的所有评论",
+          "request": {
+            "path_params": {
+              "author_id": "221d559c-c349-497b-a40e-362717e0d1b5"
+            },
+            "query_params": {
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 1,
+              "count": 1,
+              "items": [
+                {
+                  "cid": "c0000001-0000-0000-0000-000000000001",
+                  "post_id": "p0000001-0000-0000-0000-000000000001",
+                  "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+                  "comment_content": {
+                    "ccid": "cc000001-0000-0000-0000-000000000001",
+                    "comment_id": "c0000001-0000-0000-0000-000000000001",
+                    "content": "好帖子，支持一下！",
+                    "created_at": "2026-05-12T14:00:00",
+                    "updated_at": "2026-05-12T14:00:00"
+                  },
+                  "parent_id": null,
+                  "root_id": null,
+                  "comment_count": 1,
+                  "like_count": 3,
+                  "status": 0,
+                  "review_status": 0,
+                  "reviewed_at": null,
+                  "deleted_at": null
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "作者没有评论时返回空列表",
+          "request": {
+            "path_params": {
+              "author_id": "d4e5f6a7-b8c9-0123-defa-234567890123"
+            },
+            "query_params": {
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 0,
+              "count": 0,
+              "items": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/comments/root/{root_id}",
+      "summary": "按根评论 ID 获取楼中楼完整线程",
+      "cases": [
+        {
+          "scenario": "成功获取根评论的完整楼中楼线程",
+          "request": {
+            "path_params": {
+              "root_id": "c0000001-0000-0000-0000-000000000001"
+            },
+            "query_params": {
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 2,
+              "count": 2,
+              "items": [
+                {
+                  "cid": "c0000001-0000-0000-0000-000000000001",
+                  "post_id": "p0000001-0000-0000-0000-000000000001",
+                  "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+                  "comment_content": {
+                    "ccid": "cc000001-0000-0000-0000-000000000001",
+                    "comment_id": "c0000001-0000-0000-0000-000000000001",
+                    "content": "好帖子，支持一下！",
+                    "created_at": "2026-05-12T14:00:00",
+                    "updated_at": "2026-05-12T14:00:00"
+                  },
+                  "parent_id": null,
+                  "root_id": null,
+                  "comment_count": 1,
+                  "like_count": 3,
+                  "status": 0,
+                  "review_status": 0,
+                  "reviewed_at": null,
+                  "deleted_at": null
+                },
+                {
+                  "cid": "c0000002-0000-0000-0000-000000000002",
+                  "post_id": "p0000001-0000-0000-0000-000000000001",
+                  "author_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+                  "comment_content": {
+                    "ccid": "cc000002-0000-0000-0000-000000000002",
+                    "comment_id": "c0000002-0000-0000-0000-000000000002",
+                    "content": "同意楼上，确实不错",
+                    "created_at": "2026-05-12T14:05:00",
+                    "updated_at": "2026-05-12T14:05:00"
+                  },
+                  "parent_id": "c0000001-0000-0000-0000-000000000001",
+                  "root_id": "c0000001-0000-0000-0000-000000000001",
+                  "comment_count": 0,
+                  "like_count": 1,
+                  "status": 0,
+                  "review_status": 0,
+                  "reviewed_at": null,
+                  "deleted_at": null
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "根评论没有回复时返回空列表",
+          "request": {
+            "path_params": {
+              "root_id": "c0000002-0000-0000-0000-000000000002"
+            },
+            "query_params": {
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 0,
+              "count": 0,
+              "items": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/comments/parent/{parent_id}",
+      "summary": "按父评论 ID 获取直接子回复",
+      "cases": [
+        {
+          "scenario": "成功获取父评论的直接子回复",
+          "request": {
+            "path_params": {
+              "parent_id": "c0000001-0000-0000-0000-000000000001"
+            },
+            "query_params": {
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 1,
+              "count": 1,
+              "items": [
+                {
+                  "cid": "c0000002-0000-0000-0000-000000000002",
+                  "post_id": "p0000001-0000-0000-0000-000000000001",
+                  "author_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+                  "comment_content": {
+                    "ccid": "cc000002-0000-0000-0000-000000000002",
+                    "comment_id": "c0000002-0000-0000-0000-000000000002",
+                    "content": "同意楼上，确实不错",
+                    "created_at": "2026-05-12T14:05:00",
+                    "updated_at": "2026-05-12T14:05:00"
+                  },
+                  "parent_id": "c0000001-0000-0000-0000-000000000001",
+                  "root_id": "c0000001-0000-0000-0000-000000000001",
+                  "comment_count": 0,
+                  "like_count": 1,
+                  "status": 0,
+                  "review_status": 0,
+                  "reviewed_at": null,
+                  "deleted_at": null
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "父评论没有子回复时返回空列表",
+          "request": {
+            "path_params": {
+              "parent_id": "c0000002-0000-0000-0000-000000000002"
+            },
+            "query_params": {
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 0,
+              "count": 0,
+              "items": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/comments/top",
+      "summary": "获取某帖子下的一级评论（parent_id IS NULL）",
+      "cases": [
+        {
+          "scenario": "成功获取帖子的一级评论",
+          "request": {
+            "query_params": {
+              "post_id": "p0000001-0000-0000-0000-000000000001",
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 1,
+              "count": 1,
+              "items": [
+                {
+                  "cid": "c0000001-0000-0000-0000-000000000001",
+                  "post_id": "p0000001-0000-0000-0000-000000000001",
+                  "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+                  "comment_content": {
+                    "ccid": "cc000001-0000-0000-0000-000000000001",
+                    "comment_id": "c0000001-0000-0000-0000-000000000001",
+                    "content": "好帖子，支持一下！",
+                    "created_at": "2026-05-12T14:00:00",
+                    "updated_at": "2026-05-12T14:00:00"
+                  },
+                  "parent_id": null,
+                  "root_id": null,
+                  "comment_count": 1,
+                  "like_count": 3,
+                  "status": 0,
+                  "review_status": 0,
+                  "reviewed_at": null,
+                  "deleted_at": null
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "帖子没有一级评论时返回空列表",
+          "request": {
+            "query_params": {
+              "post_id": "p0000002-0000-0000-0000-000000000002",
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 0,
+              "count": 0,
+              "items": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/comments/id/{cid}",
+      "summary": "审核员/管理员更新评论状态（折叠/审核）",
+      "cases": [
+        {
+          "scenario": "管理员成功将评论折叠（status → FOLDED=1）",
+          "request": {
+            "path_params": {
+              "cid": "c0000001-0000-0000-0000-000000000001"
+            },
+            "query_params": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001"
+            },
+            "body": {
+              "status": 1
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": true
+          }
+        },
+        {
+          "scenario": "非管理员尝试更新评论状态（权限不足）",
+          "request": {
+            "path_params": {
+              "cid": "c0000001-0000-0000-0000-000000000001"
+            },
+            "query_params": {
+              "admin_uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            },
+            "body": {
+              "status": 1
+            }
+          },
+          "expected_response": {
+            "code": 403,
+            "msg": "admin permission denied",
+            "data": null
+          }
+        },
+        {
+          "scenario": "管理员审核拒绝评论（review_status → REJECTED=1）",
+          "request": {
+            "path_params": {
+              "cid": "c0000002-0000-0000-0000-000000000002"
+            },
+            "query_params": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001"
+            },
+            "body": {
+              "review_status": 1
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": true
+          }
+        },
+        {
+          "scenario": "更新不存在的评论状态",
+          "request": {
+            "path_params": {
+              "cid": "c9999999-9999-9999-9999-999999999999"
+            },
+            "query_params": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001"
+            },
+            "body": {
+              "status": 1
+            }
+          },
+          "expected_response": {
+            "code": 500,
+            "msg": "update failed",
+            "data": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/comments/id/{cid}",
+      "summary": "软删除评论",
+      "cases": [
+        {
+          "scenario": "成功软删除评论",
+          "request": {
+            "path_params": {
+              "cid": "c0000001-0000-0000-0000-000000000001"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": true
+          }
+        },
+        {
+          "scenario": "软删除不存在的评论",
+          "request": {
+            "path_params": {
+              "cid": "c9999999-9999-9999-9999-999999999999"
+            }
+          },
+          "expected_response": {
+            "code": 500,
+            "msg": "delete failed",
+            "data": false
+          }
+        },
+        {
+          "scenario": "重复软删除（已软删除的评论再次软删除）",
+          "request": {
+            "path_params": {
+              "cid": "c0000003-0000-0000-0000-000000000003"
+            }
+          },
+          "expected_response": {
+            "code": 500,
+            "msg": "delete failed",
+            "data": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/comments/hard/{cid}",
+      "summary": "管理员硬删除评论",
+      "cases": [
+        {
+          "scenario": "管理员成功硬删除评论",
+          "request": {
+            "path_params": {
+              "cid": "c0000001-0000-0000-0000-000000000001"
+            },
+            "query_params": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": true
+          }
+        },
+        {
+          "scenario": "非管理员尝试硬删除（权限不足）",
+          "request": {
+            "path_params": {
+              "cid": "c0000001-0000-0000-0000-000000000001"
+            },
+            "query_params": {
+              "admin_uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 403,
+            "msg": "admin permission denied",
+            "data": null
+          }
+        },
+        {
+          "scenario": "管理员硬删除不存在的评论",
+          "request": {
+            "path_params": {
+              "cid": "c9999999-9999-9999-9999-999999999999"
+            },
+            "query_params": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "Comment not found: c9999999-9999-9999-9999-999999999999",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/comments/post-by-cid/{cid}",
+      "summary": "根据评论 CID 获取所属帖子",
+      "cases": [
+        {
+          "scenario": "成功通过评论 cid 获取帖子",
+          "request": {
+            "path_params": {
+              "cid": "c0000001-0000-0000-0000-000000000001"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "pid": "p0000001-0000-0000-0000-000000000001",
+              "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "post_status": {
+                "visibility": 0,
+                "publish_status": 1
+              },
+              "post_content": {
+                "pcid": "pc000001-0000-0000-0000-000000000001",
+                "post_id": "p0000001-0000-0000-0000-000000000001",
+                "title": "今天天气真好",
+                "content": "今天去了公园，阳光明媚，心情很好。",
+                "created_at": "2026-05-12T10:00:00"
+              },
+              "post_stats": {
+                "like_count": 5,
+                "comment_count": 3
+              }
+            }
+          }
+        },
+        {
+          "scenario": "通过不存在的评论 cid 获取帖子",
+          "request": {
+            "path_params": {
+              "cid": "c9999999-9999-9999-9999-999999999999"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "Comment not found: c9999999-9999-9999-9999-999999999999",
+            "data": null
+          }
+        }
+      ]
+    }
+  ]
+}

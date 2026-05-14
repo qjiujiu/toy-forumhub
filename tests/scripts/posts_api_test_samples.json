@@ -1,0 +1,880 @@
+{
+  "version": "1.0",
+  "description": "app/api/v2/posts.py 所有接口的真实测试样例",
+  "base_url": "http://localhost:8000",
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/posts/",
+      "summary": "创建帖子",
+      "cases": [
+        {
+          "scenario": "成功创建公开已发布的帖子",
+          "request": {
+            "body": {
+              "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "title": "今天天气真好",
+              "content": "今天去了公园，阳光明媚，心情很好。",
+              "post_status": {
+                "visibility": 0,
+                "publish_status": 1
+              }
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "pid": "p0000001-0000-0000-0000-000000000001",
+              "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "post_status": {
+                "visibility": 0,
+                "publish_status": 1
+              },
+              "post_content": {
+                "pcid": "pc000001-0000-0000-0000-000000000001",
+                "post_id": "p0000001-0000-0000-0000-000000000001",
+                "title": "今天天气真好",
+                "content": "今天去了公园，阳光明媚，心情很好。",
+                "created_at": "2026-05-12T10:00:00"
+              },
+              "post_stats": {
+                "like_count": 0,
+                "comment_count": 0
+              }
+            }
+          }
+        },
+        {
+          "scenario": "成功创建草稿（仅作者可见）",
+          "request": {
+            "body": {
+              "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "title": "未完成的想法",
+              "content": "还在构思中...",
+              "post_status": {
+                "visibility": 1,
+                "publish_status": 0
+              }
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "pid": "p0000002-0000-0000-0000-000000000002",
+              "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "post_status": {
+                "visibility": 1,
+                "publish_status": 0
+              },
+              "post_content": {
+                "pcid": "pc000002-0000-0000-0000-000000000002",
+                "post_id": "p0000002-0000-0000-0000-000000000002",
+                "title": "未完成的想法",
+                "content": "还在构思中...",
+                "created_at": "2026-05-12T10:05:00"
+              },
+              "post_stats": {
+                "like_count": 0,
+                "comment_count": 0
+              }
+            }
+          }
+        },
+        {
+          "scenario": "缺少必填字段（空标题）",
+          "request": {
+            "body": {
+              "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "title": "",
+              "content": "正文内容",
+              "post_status": {
+                "visibility": 0,
+                "publish_status": 1
+              }
+            }
+          },
+          "expected_response": {
+            "code": 422,
+            "detail": [
+              {
+                "loc": ["body", "title"],
+                "msg": "Value error, Title and content cannot be empty",
+                "type": "value_error"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/posts/",
+      "summary": "分页获取所有帖子（按创建时间倒序）",
+      "cases": [
+        {
+          "scenario": "成功获取第一页帖子",
+          "request": {
+            "query_params": {
+              "page": 0,
+              "page_size": 10
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 3,
+              "count": 3,
+              "items": [
+                {
+                  "pid": "p0000002-0000-0000-0000-000000000002",
+                  "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+                  "post_status": {
+                    "visibility": 1,
+                    "publish_status": 0
+                  },
+                  "post_content": {
+                    "pcid": "pc000002-0000-0000-0000-000000000002",
+                    "post_id": "p0000002-0000-0000-0000-000000000002",
+                    "title": "未完成的想法",
+                    "content": "还在构思中...",
+                    "created_at": "2026-05-12T10:05:00"
+                  },
+                  "post_stats": {
+                    "like_count": 0,
+                    "comment_count": 0
+                  }
+                },
+                {
+                  "pid": "p0000001-0000-0000-0000-000000000001",
+                  "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+                  "post_status": {
+                    "visibility": 0,
+                    "publish_status": 1
+                  },
+                  "post_content": {
+                    "pcid": "pc000001-0000-0000-0000-000000000001",
+                    "post_id": "p0000001-0000-0000-0000-000000000001",
+                    "title": "今天天气真好",
+                    "content": "今天去了公园，阳光明媚，心情很好。",
+                    "created_at": "2026-05-12T10:00:00"
+                  },
+                  "post_stats": {
+                    "like_count": 5,
+                    "comment_count": 3
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "空结果页（翻页超出范围）",
+          "request": {
+            "query_params": {
+              "page": 100,
+              "page_size": 10
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 3,
+              "count": 0,
+              "items": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/posts/id/{pid}",
+      "summary": "根据 pid 获取帖子详情",
+      "cases": [
+        {
+          "scenario": "查询存在的帖子",
+          "request": {
+            "path_params": {
+              "pid": "p0000001-0000-0000-0000-000000000001"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "pid": "p0000001-0000-0000-0000-000000000001",
+              "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "post_status": {
+                "visibility": 0,
+                "publish_status": 1
+              },
+              "post_content": {
+                "pcid": "pc000001-0000-0000-0000-000000000001",
+                "post_id": "p0000001-0000-0000-0000-000000000001",
+                "title": "今天天气真好",
+                "content": "今天去了公园，阳光明媚，心情很好。",
+                "created_at": "2026-05-12T10:00:00"
+              },
+              "post_stats": {
+                "like_count": 5,
+                "comment_count": 3
+              }
+            }
+          }
+        },
+        {
+          "scenario": "查询不存在的 pid",
+          "request": {
+            "path_params": {
+              "pid": "p9999999-9999-9999-9999-999999999999"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "pid p9999999-9999-9999-9999-999999999999 not found.",
+            "data": null
+          }
+        },
+        {
+          "scenario": "查询已软删除的帖子",
+          "request": {
+            "path_params": {
+              "pid": "p0000003-0000-0000-0000-000000000003"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "pid p0000003-0000-0000-0000-000000000003 not found.",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/posts/author/{author_id}",
+      "summary": "分页获取作者的所有帖子",
+      "cases": [
+        {
+          "scenario": "查询作者有帖子的情况",
+          "request": {
+            "path_params": {
+              "author_id": "221d559c-c349-497b-a40e-362717e0d1b5"
+            },
+            "query_params": {
+              "page": 0,
+              "page_size": 10
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 2,
+              "count": 2,
+              "items": [
+                {
+                  "pid": "p0000001-0000-0000-0000-000000000001",
+                  "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+                  "post_status": {
+                    "visibility": 0,
+                    "publish_status": 1
+                  },
+                  "post_content": {
+                    "pcid": "pc000001-0000-0000-0000-000000000001",
+                    "post_id": "p0000001-0000-0000-0000-000000000001",
+                    "title": "今天天气真好",
+                    "content": "今天去了公园，阳光明媚，心情很好。",
+                    "created_at": "2026-05-12T10:00:00"
+                  },
+                  "post_stats": {
+                    "like_count": 5,
+                    "comment_count": 3
+                  }
+                },
+                {
+                  "pid": "p0000002-0000-0000-0000-000000000002",
+                  "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+                  "post_status": {
+                    "visibility": 1,
+                    "publish_status": 0
+                  },
+                  "post_content": {
+                    "pcid": "pc000002-0000-0000-0000-000000000002",
+                    "post_id": "p0000002-0000-0000-0000-000000000002",
+                    "title": "未完成的想法",
+                    "content": "还在构思中...",
+                    "created_at": "2026-05-12T10:05:00"
+                  },
+                  "post_stats": {
+                    "like_count": 0,
+                    "comment_count": 0
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "作者没有帖子（空结果）",
+          "request": {
+            "path_params": {
+              "author_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            },
+            "query_params": {
+              "page": 0,
+              "page_size": 10
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 0,
+              "count": 0,
+              "items": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/posts/content/{pid}/{uid}",
+      "summary": "更新帖子内容（作者本人）",
+      "cases": [
+        {
+          "scenario": "成功更新帖子标题和内容",
+          "request": {
+            "path_params": {
+              "pid": "p0000001-0000-0000-0000-000000000001",
+              "uid": "221d559c-c349-497b-a40e-362717e0d1b5"
+            },
+            "body": {
+              "title": "今天天气真好（修订版）",
+              "content": "补充了更多细节描述..."
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "pid": "p0000001-0000-0000-0000-000000000001",
+              "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "post_status": {
+                "visibility": 0,
+                "publish_status": 1
+              },
+              "post_content": {
+                "pcid": "pc000001-0000-0000-0000-000000000001",
+                "post_id": "p0000001-0000-0000-0000-000000000001",
+                "title": "今天天气真好（修订版）",
+                "content": "补充了更多细节描述...",
+                "created_at": "2026-05-12T10:00:00"
+              },
+              "post_stats": {
+                "like_count": 5,
+                "comment_count": 3
+              }
+            }
+          }
+        },
+        {
+          "scenario": "非作者尝试更新帖子（Forbidden）",
+          "request": {
+            "path_params": {
+              "pid": "p0000001-0000-0000-0000-000000000001",
+              "uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            },
+            "body": {
+              "title": "恶意修改标题"
+            }
+          },
+          "expected_response": {
+            "code": 403,
+            "msg": "forbidden action: only the author can update this post",
+            "data": null
+          }
+        },
+        {
+          "scenario": "更新不存在的帖子",
+          "request": {
+            "path_params": {
+              "pid": "p9999999-9999-9999-9999-999999999999",
+              "uid": "221d559c-c349-497b-a40e-362717e0d1b5"
+            },
+            "body": {
+              "title": "新标题"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "pid p9999999-9999-9999-9999-999999999999 not found.",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/posts/visibility/{pid}/{uid}",
+      "summary": "更新帖子可见性（作者本人）",
+      "cases": [
+        {
+          "scenario": "成功将帖子改为仅作者可见",
+          "request": {
+            "path_params": {
+              "pid": "p0000001-0000-0000-0000-000000000001",
+              "uid": "221d559c-c349-497b-a40e-362717e0d1b5"
+            },
+            "body": {
+              "visibility": 1
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "pid": "p0000001-0000-0000-0000-000000000001",
+              "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "post_status": {
+                "visibility": 1,
+                "publish_status": 1
+              },
+              "post_content": {
+                "pcid": "pc000001-0000-0000-0000-000000000001",
+                "post_id": "p0000001-0000-0000-0000-000000000001",
+                "title": "今天天气真好",
+                "content": "今天去了公园，阳光明媚，心情很好。",
+                "created_at": "2026-05-12T10:00:00"
+              },
+              "post_stats": {
+                "like_count": 5,
+                "comment_count": 3
+              }
+            }
+          }
+        },
+        {
+          "scenario": "非作者尝试修改可见性",
+          "request": {
+            "path_params": {
+              "pid": "p0000001-0000-0000-0000-000000000001",
+              "uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            },
+            "body": {
+              "visibility": 0
+            }
+          },
+          "expected_response": {
+            "code": 403,
+            "msg": "forbidden action: only the author can update this post",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/posts/publish/{pid}/{uid}",
+      "summary": "发布帖子（草稿→已发布）",
+      "cases": [
+        {
+          "scenario": "成功发布草稿帖子",
+          "request": {
+            "path_params": {
+              "pid": "p0000002-0000-0000-0000-000000000002",
+              "uid": "221d559c-c349-497b-a40e-362717e0d1b5"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "pid": "p0000002-0000-0000-0000-000000000002",
+              "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "post_status": {
+                "visibility": 1,
+                "publish_status": 1
+              },
+              "post_content": {
+                "pcid": "pc000002-0000-0000-0000-000000000002",
+                "post_id": "p0000002-0000-0000-0000-000000000002",
+                "title": "未完成的想法",
+                "content": "还在构思中...",
+                "created_at": "2026-05-12T10:05:00"
+              },
+              "post_stats": {
+                "like_count": 0,
+                "comment_count": 0
+              }
+            }
+          }
+        },
+        {
+          "scenario": "非作者尝试发布帖子",
+          "request": {
+            "path_params": {
+              "pid": "p0000002-0000-0000-0000-000000000002",
+              "uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 403,
+            "msg": "forbidden action: only the author can publish this post",
+            "data": null
+          }
+        },
+        {
+          "scenario": "发布不存在的帖子",
+          "request": {
+            "path_params": {
+              "pid": "p9999999-9999-9999-9999-999999999999",
+              "uid": "221d559c-c349-497b-a40e-362717e0d1b5"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "pid p9999999-9999-9999-9999-999999999999 not found.",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/posts/soft/{pid}/{uid}",
+      "summary": "软删除帖子（作者本人）",
+      "cases": [
+        {
+          "scenario": "成功软删除自己的帖子",
+          "request": {
+            "path_params": {
+              "pid": "p0000001-0000-0000-0000-000000000001",
+              "uid": "221d559c-c349-497b-a40e-362717e0d1b5"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": true
+          }
+        },
+        {
+          "scenario": "非作者尝试软删除帖子",
+          "request": {
+            "path_params": {
+              "pid": "p0000001-0000-0000-0000-000000000001",
+              "uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 403,
+            "msg": "forbidden action",
+            "data": null
+          }
+        },
+        {
+          "scenario": "软删除不存在的帖子",
+          "request": {
+            "path_params": {
+              "pid": "p9999999-9999-9999-9999-999999999999",
+              "uid": "221d559c-c349-497b-a40e-362717e0d1b5"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "pid p9999999-9999-9999-9999-999999999999 not found.",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/posts/hard/{pid}",
+      "summary": "管理员硬删除帖子",
+      "cases": [
+        {
+          "scenario": "管理员成功硬删除帖子",
+          "request": {
+            "path_params": {
+              "pid": "p0000001-0000-0000-0000-000000000001"
+            },
+            "query_params": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": true
+          }
+        },
+        {
+          "scenario": "非管理员尝试硬删除",
+          "request": {
+            "path_params": {
+              "pid": "p0000001-0000-0000-0000-000000000001"
+            },
+            "query_params": {
+              "admin_uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 403,
+            "msg": "admin permission denied",
+            "data": null
+          }
+        },
+        {
+          "scenario": "管理员硬删除不存在的帖子",
+          "request": {
+            "path_params": {
+              "pid": "p9999999-9999-9999-9999-999999999999"
+            },
+            "query_params": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "pid p9999999-9999-9999-9999-999999999999 not found.",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/posts/ban/{pid}",
+      "summary": "管理员封禁帖子（publish_status → BANNED=2）",
+      "cases": [
+        {
+          "scenario": "管理员成功封禁帖子",
+          "request": {
+            "path_params": {
+              "pid": "p0000001-0000-0000-0000-000000000001"
+            },
+            "query_params": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "pid": "p0000001-0000-0000-0000-000000000001",
+              "author_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "post_status": {
+                "visibility": 0,
+                "publish_status": 2
+              },
+              "post_content": {
+                "pcid": "pc000001-0000-0000-0000-000000000001",
+                "post_id": "p0000001-0000-0000-0000-000000000001",
+                "title": "今天天气真好",
+                "content": "今天去了公园，阳光明媚，心情很好。",
+                "created_at": "2026-05-12T10:00:00"
+              },
+              "post_stats": {
+                "like_count": 5,
+                "comment_count": 3
+              }
+            }
+          }
+        },
+        {
+          "scenario": "非管理员尝试封禁帖子",
+          "request": {
+            "path_params": {
+              "pid": "p0000001-0000-0000-0000-000000000001"
+            },
+            "query_params": {
+              "admin_uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 403,
+            "msg": "admin permission denied",
+            "data": null
+          }
+        },
+        {
+          "scenario": "封禁不存在的帖子",
+          "request": {
+            "path_params": {
+              "pid": "p9999999-9999-9999-9999-999999999999"
+            },
+            "query_params": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "pid p9999999-9999-9999-9999-999999999999 not found.",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/posts/top/liked",
+      "summary": "获取点赞数最多的热榜帖子",
+      "cases": [
+        {
+          "scenario": "成功获取点赞热榜（前3条）",
+          "request": {
+            "query_params": {
+              "limit": 3
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "items": [
+                {
+                  "pid": "p0000010-0000-0000-0000-000000000010",
+                  "title": "热门文章：Python入门指南",
+                  "author": {
+                    "uid": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+                    "username": "王五",
+                    "avatar_url": null
+                  },
+                  "post_stats": {
+                    "like_count": 128,
+                    "comment_count": 45
+                  }
+                },
+                {
+                  "pid": "p0000011-0000-0000-0000-000000000011",
+                  "title": "周末旅游推荐",
+                  "author": {
+                    "uid": "221d559c-c349-497b-a40e-362717e0d1b5",
+                    "username": "张三",
+                    "avatar_url": "https://example.com/avatars/zhangsan.png"
+                  },
+                  "post_stats": {
+                    "like_count": 96,
+                    "comment_count": 32
+                  }
+                },
+                {
+                  "pid": "p0000012-0000-0000-0000-000000000012",
+                  "title": "摄影技巧分享",
+                  "author": {
+                    "uid": "d4e5f6a7-b8c9-0123-defa-234567890123",
+                    "username": "赵六",
+                    "avatar_url": null
+                  },
+                  "post_stats": {
+                    "like_count": 72,
+                    "comment_count": 18
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "没有帖子时返回空列表",
+          "request": {
+            "query_params": {
+              "limit": 10
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "items": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/posts/top/commented",
+      "summary": "获取评论数最多的热榜帖子",
+      "cases": [
+        {
+          "scenario": "成功获取评论热榜（前3条）",
+          "request": {
+            "query_params": {
+              "limit": 3
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "items": [
+                {
+                  "pid": "p0000020-0000-0000-0000-000000000020",
+                  "title": "大家的年度计划是什么？",
+                  "author": {
+                    "uid": "221d559c-c349-497b-a40e-362717e0d1b5",
+                    "username": "张三",
+                    "avatar_url": null
+                  },
+                  "post_stats": {
+                    "like_count": 56,
+                    "comment_count": 89
+                  }
+                },
+                {
+                  "pid": "p0000021-0000-0000-0000-000000000021",
+                  "title": "求推荐好用的IDE",
+                  "author": {
+                    "uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+                    "username": "李四",
+                    "avatar_url": "https://example.com/avatars/lisi.png"
+                  },
+                  "post_stats": {
+                    "like_count": 34,
+                    "comment_count": 67
+                  }
+                },
+                {
+                  "pid": "p0000022-0000-0000-0000-000000000022",
+                  "title": "今天吃了一家很棒的餐厅",
+                  "author": {
+                    "uid": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+                    "username": "王五",
+                    "avatar_url": null
+                  },
+                  "post_stats": {
+                    "like_count": 28,
+                    "comment_count": 41
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "没有帖子时返回空列表",
+          "request": {
+            "query_params": {
+              "limit": 10
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "items": []
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
