@@ -1,0 +1,441 @@
+{
+  "version": "1.0",
+  "description": "app/api/v2/likes.py 所有接口的真实测试样例",
+  "base_url": "http://localhost:8000",
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/likes/",
+      "summary": "点赞（帖子或评论）",
+      "cases": [
+        {
+          "scenario": "成功给帖子点赞（target_type=0）",
+          "request": {
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "target_type": 0,
+              "target_id": "p0000001-0000-0000-0000-000000000001"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "lid": "l0000001-0000-0000-0000-000000000001",
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "target_type": 0,
+              "target_id": "p0000001-0000-0000-0000-000000000001",
+              "created_at": "2026-05-12T15:00:00",
+              "updated_at": "2026-05-12T15:00:00"
+            }
+          }
+        },
+        {
+          "scenario": "成功给评论点赞（target_type=1）",
+          "request": {
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "target_type": 1,
+              "target_id": "c0000001-0000-0000-0000-000000000001"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "lid": "l0000002-0000-0000-0000-000000000002",
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "target_type": 1,
+              "target_id": "c0000001-0000-0000-0000-000000000001",
+              "created_at": "2026-05-12T15:01:00",
+              "updated_at": "2026-05-12T15:01:00"
+            }
+          }
+        },
+        {
+          "scenario": "重复点赞同一目标（AlreadyLikedError）",
+          "request": {
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "target_type": 0,
+              "target_id": "p0000001-0000-0000-0000-000000000001"
+            }
+          },
+          "expected_response": {
+            "code": 400,
+            "msg": "user 221d559c-c349-497b-a40e-362717e0d1b5 already liked target_type=0 target_id=p0000001-0000-0000-0000-000000000001",
+            "data": null
+          }
+        },
+        {
+          "scenario": "缺少必填字段（无 target_id）",
+          "request": {
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "target_type": 0
+            }
+          },
+          "expected_response": {
+            "code": 422,
+            "detail": [
+              {
+                "loc": ["body", "target_id"],
+                "msg": "Field required",
+                "type": "missing"
+              }
+            ]
+          }
+        },
+        {
+          "scenario": "给不存在的帖子点赞",
+          "request": {
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "target_type": 0,
+              "target_id": "p9999999-9999-9999-9999-999999999999"
+            }
+          },
+          "expected_response": {
+            "code": 500,
+            "msg": "Target not found",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/likes/",
+      "summary": "取消点赞（软删除）",
+      "cases": [
+        {
+          "scenario": "成功取消已存在的点赞",
+          "request": {
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "target_type": 0,
+              "target_id": "p0000001-0000-0000-0000-000000000001"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": true
+          }
+        },
+        {
+          "scenario": "取消不存在的点赞记录（NotLikedError）",
+          "request": {
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "target_type": 0,
+              "target_id": "p0000002-0000-0000-0000-000000000002"
+            }
+          },
+          "expected_response": {
+            "code": 400,
+            "msg": "user 221d559c-c349-497b-a40e-362717e0d1b5 has not liked target_type=0 target_id=p0000002-0000-0000-0000-000000000002",
+            "data": null
+          }
+        },
+        {
+          "scenario": "重复取消已取消的点赞",
+          "request": {
+            "body": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "target_type": 0,
+              "target_id": "p0000001-0000-0000-0000-000000000001"
+            }
+          },
+          "expected_response": {
+            "code": 400,
+            "msg": "user 221d559c-c349-497b-a40e-362717e0d1b5 has not liked target_type=0 target_id=p0000001-0000-0000-0000-000000000001",
+            "data": null
+          }
+        },
+        {
+          "scenario": "缺少必填字段（无 user_id）",
+          "request": {
+            "body": {
+              "target_type": 0,
+              "target_id": "p0000001-0000-0000-0000-000000000001"
+            }
+          },
+          "expected_response": {
+            "code": 422,
+            "detail": [
+              {
+                "loc": ["body", "user_id"],
+                "msg": "Field required",
+                "type": "missing"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/likes/user",
+      "summary": "获取某用户在某类型下的点赞列表",
+      "cases": [
+        {
+          "scenario": "成功获取用户点赞过的帖子列表",
+          "request": {
+            "query_params": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "target_type": 0,
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 2,
+              "count": 2,
+              "items": [
+                {
+                  "lid": "l0000001-0000-0000-0000-000000000001",
+                  "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+                  "target_type": 0,
+                  "target_id": "p0000001-0000-0000-0000-000000000001",
+                  "created_at": "2026-05-12T15:00:00",
+                  "updated_at": "2026-05-12T15:00:00"
+                },
+                {
+                  "lid": "l0000003-0000-0000-0000-000000000003",
+                  "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+                  "target_type": 0,
+                  "target_id": "p0000003-0000-0000-0000-000000000003",
+                  "created_at": "2026-05-12T15:10:00",
+                  "updated_at": "2026-05-12T15:10:00"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "用户没有点赞记录时返回空列表",
+          "request": {
+            "query_params": {
+              "user_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+              "target_type": 0,
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 0,
+              "count": 0,
+              "items": []
+            }
+          }
+        },
+        {
+          "scenario": "成功获取用户点赞过的评论列表",
+          "request": {
+            "query_params": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "target_type": 1,
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 1,
+              "count": 1,
+              "items": [
+                {
+                  "lid": "l0000002-0000-0000-0000-000000000002",
+                  "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+                  "target_type": 1,
+                  "target_id": "c0000001-0000-0000-0000-000000000001",
+                  "created_at": "2026-05-12T15:01:00",
+                  "updated_at": "2026-05-12T15:01:00"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "分页测试：获取第一页",
+          "request": {
+            "query_params": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "target_type": 0,
+              "page": 0,
+              "page_size": 1
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 2,
+              "count": 1,
+              "items": [
+                {
+                  "lid": "l0000003-0000-0000-0000-000000000003",
+                  "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+                  "target_type": 0,
+                  "target_id": "p0000003-0000-0000-0000-000000000003",
+                  "created_at": "2026-05-12T15:10:00",
+                  "updated_at": "2026-05-12T15:10:00"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "分页测试：翻页超出范围返回空列表",
+          "request": {
+            "query_params": {
+              "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+              "target_type": 0,
+              "page": 100,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 2,
+              "count": 0,
+              "items": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/likes/target",
+      "summary": "获取某内容（帖子/评论）下的所有点赞用户列表",
+      "cases": [
+        {
+          "scenario": "成功获取帖子的点赞用户列表",
+          "request": {
+            "query_params": {
+              "target_type": 0,
+              "target_id": "p0000001-0000-0000-0000-000000000001",
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 3,
+              "count": 3,
+              "items": [
+                {
+                  "lid": "l0000001-0000-0000-0000-000000000001",
+                  "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+                  "target_type": 0,
+                  "target_id": "p0000001-0000-0000-0000-000000000001",
+                  "created_at": "2026-05-12T15:00:00",
+                  "updated_at": "2026-05-12T15:00:00"
+                },
+                {
+                  "lid": "l0000004-0000-0000-0000-000000000004",
+                  "user_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+                  "target_type": 0,
+                  "target_id": "p0000001-0000-0000-0000-000000000001",
+                  "created_at": "2026-05-12T15:05:00",
+                  "updated_at": "2026-05-12T15:05:00"
+                },
+                {
+                  "lid": "l0000005-0000-0000-0000-000000000005",
+                  "user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+                  "target_type": 0,
+                  "target_id": "p0000001-0000-0000-0000-000000000001",
+                  "created_at": "2026-05-12T15:08:00",
+                  "updated_at": "2026-05-12T15:08:00"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "成功获取评论的点赞用户列表",
+          "request": {
+            "query_params": {
+              "target_type": 1,
+              "target_id": "c0000001-0000-0000-0000-000000000001",
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 1,
+              "count": 1,
+              "items": [
+                {
+                  "lid": "l0000002-0000-0000-0000-000000000002",
+                  "user_id": "221d559c-c349-497b-a40e-362717e0d1b5",
+                  "target_type": 1,
+                  "target_id": "c0000001-0000-0000-0000-000000000001",
+                  "created_at": "2026-05-12T15:01:00",
+                  "updated_at": "2026-05-12T15:01:00"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "内容没有点赞时返回空列表",
+          "request": {
+            "query_params": {
+              "target_type": 0,
+              "target_id": "p0000002-0000-0000-0000-000000000002",
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 0,
+              "count": 0,
+              "items": []
+            }
+          }
+        },
+        {
+          "scenario": "不存在的 target_id 返回空列表",
+          "request": {
+            "query_params": {
+              "target_type": 0,
+              "target_id": "p9999999-9999-9999-9999-999999999999",
+              "page": 0,
+              "page_size": 20
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 0,
+              "count": 0,
+              "items": []
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

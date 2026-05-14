@@ -1,0 +1,885 @@
+{
+  "version": "1.0",
+  "description": "app/api/v2/users.py 所有接口的真实测试样例",
+  "base_url": "http://localhost:8000",
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/users/",
+      "summary": "创建用户（注册）",
+      "cases": [
+        {
+          "scenario": "成功创建用户",
+          "request": {
+            "body": {
+              "username": "张三",
+              "password": "Abc@123456",
+              "phone": "13800138001"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "uid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+              "user_info": {
+                "username": "张三",
+                "phone": "13800138001",
+                "email": null,
+                "avatar_url": null,
+                "bio": null,
+                "role": 0,
+                "status": 0
+              },
+              "user_data": {
+                "last_login_at": "2026-05-12T10:30:00",
+                "created_at": "2026-05-12T10:30:00",
+                "updated_at": "2026-05-12T10:30:00",
+                "deleted_at": null
+              }
+            }
+          }
+        },
+        {
+          "scenario": "手机号已注册（重复phone）",
+          "request": {
+            "body": {
+              "username": "李四",
+              "password": "Abc@123456",
+              "phone": "13800138001"
+            }
+          },
+          "expected_response": {
+            "code": 500,
+            "msg": "(pymysql.err.IntegrityError) (1062, \"Duplicate entry '13800138001' for key 'users.phone'\")",
+            "data": null
+          }
+        },
+        {
+          "scenario": "缺少必填字段username",
+          "request": {
+            "body": {
+              "password": "Abc@123456",
+              "phone": "13800138002"
+            }
+          },
+          "expected_response": {
+            "detail": [
+              {
+                "loc": ["body", "username"],
+                "msg": "field required",
+                "type": "value_error.missing"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/users/",
+      "summary": "分页获取用户列表",
+      "cases": [
+        {
+          "scenario": "获取第一页，每页5个用户",
+          "request": {
+            "query_params": {
+              "page": 0,
+              "page_size": 5
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 12,
+              "count": 5,
+              "users": [
+                {
+                  "uid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                  "user_info": {
+                    "username": "张三",
+                    "phone": "13800138001",
+                    "email": null,
+                    "avatar_url": null,
+                    "bio": null,
+                    "role": 0,
+                    "status": 0
+                  },
+                  "user_data": {
+                    "last_login_at": "2026-05-12T10:30:00",
+                    "created_at": "2026-05-12T10:30:00",
+                    "updated_at": "2026-05-12T10:30:00",
+                    "deleted_at": null
+                  }
+                },
+                {
+                  "uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+                  "user_info": {
+                    "username": "李四",
+                    "phone": "13800138002",
+                    "email": null,
+                    "avatar_url": null,
+                    "bio": null,
+                    "role": 0,
+                    "status": 0
+                  },
+                  "user_data": {
+                    "last_login_at": "2026-05-12T11:00:00",
+                    "created_at": "2026-05-12T11:00:00",
+                    "updated_at": "2026-05-12T11:00:00",
+                    "deleted_at": null
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "空结果页（翻页超出范围）",
+          "request": {
+            "query_params": {
+              "page": 100,
+              "page_size": 10
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 12,
+              "count": 0,
+              "users": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/users/username/{username}",
+      "summary": "根据用户名分页查询同名用户",
+      "cases": [
+        {
+          "scenario": "按用户名搜索，有匹配结果",
+          "request": {
+            "path_params": {
+              "username": "张三"
+            },
+            "query_params": {
+              "page": 0,
+              "page_size": 10
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 2,
+              "count": 2,
+              "users": [
+                {
+                  "uid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                  "user_info": {
+                    "username": "张三",
+                    "phone": "13800138001",
+                    "email": null,
+                    "avatar_url": null,
+                    "bio": null,
+                    "role": 0,
+                    "status": 0
+                  },
+                  "user_data": {
+                    "last_login_at": "2026-05-12T10:30:00",
+                    "created_at": "2026-05-12T10:30:00",
+                    "updated_at": "2026-05-12T10:30:00",
+                    "deleted_at": null
+                  }
+                },
+                {
+                  "uid": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+                  "user_info": {
+                    "username": "张三",
+                    "phone": "13800138100",
+                    "email": null,
+                    "avatar_url": null,
+                    "bio": null,
+                    "role": 0,
+                    "status": 0
+                  },
+                  "user_data": {
+                    "last_login_at": "2026-05-12T12:00:00",
+                    "created_at": "2026-05-12T12:00:00",
+                    "updated_at": "2026-05-12T12:00:00",
+                    "deleted_at": null
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "scenario": "按用户名搜索，无匹配结果",
+          "request": {
+            "path_params": {
+              "username": "不存在的用户"
+            },
+            "query_params": {
+              "page": 0,
+              "page_size": 10
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "total": 0,
+              "count": 0,
+              "users": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/users/id/{uid}",
+      "summary": "根据 uid 查询用户基础信息",
+      "cases": [
+        {
+          "scenario": "查询存在的用户",
+          "request": {
+            "path_params": {
+              "uid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "uid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+              "user_info": {
+                "username": "张三",
+                "phone": "13800138001",
+                "email": null,
+                "avatar_url": null,
+                "bio": null,
+                "role": 0,
+                "status": 0
+              },
+              "user_data": {
+                "last_login_at": "2026-05-12T10:30:00",
+                "created_at": "2026-05-12T10:30:00",
+                "updated_at": "2026-05-12T10:30:00",
+                "deleted_at": null
+              }
+            }
+          }
+        },
+        {
+          "scenario": "查询不存在的 uid",
+          "request": {
+            "path_params": {
+              "uid": "eeeeeeee-ffff-0000-1111-222222222222"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "uid eeeeeeee-ffff-0000-1111-222222222222 not found.",
+            "data": null
+          }
+        },
+        {
+          "scenario": "查询已软删除的用户",
+          "request": {
+            "path_params": {
+              "uid": "dddddddd-cccc-bbbb-aaaa-999999999999"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "uid dddddddd-cccc-bbbb-aaaa-999999999999 not found.",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/users/profile/{uid}",
+      "summary": "查询用户详情（含关注数/粉丝数）",
+      "cases": [
+        {
+          "scenario": "查询存在的用户主页",
+          "request": {
+            "path_params": {
+              "uid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "user_info": {
+                "uid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                "user_info": {
+                  "username": "张三",
+                  "phone": "13800138001",
+                  "email": null,
+                  "avatar_url": null,
+                  "bio": "大家好，我是张三",
+                  "role": 0,
+                  "status": 0
+                },
+                "user_data": {
+                  "last_login_at": "2026-05-12T10:30:00",
+                  "created_at": "2026-05-12T10:30:00",
+                  "updated_at": "2026-05-12T10:30:00",
+                  "deleted_at": null
+                }
+              },
+              "user_stats": {
+                "following_count": 10,
+                "followers_count": 25
+              }
+            }
+          }
+        },
+        {
+          "scenario": "查询不存在的用户详情",
+          "request": {
+            "path_params": {
+              "uid": "eeeeeeee-ffff-0000-1111-222222222222"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "uid eeeeeeee-ffff-0000-1111-222222222222 not found.",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/users/info/id/{uid}",
+      "summary": "普通用户更新自己的信息",
+      "cases": [
+        {
+          "scenario": "成功更新用户昵称和头像",
+          "request": {
+            "path_params": {
+              "uid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            },
+            "body": {
+              "username": "张三（改名了）",
+              "avatar_url": "https://example.com/avatars/new_avatar.png",
+              "bio": "这是新的个人简介"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "uid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+              "user_info": {
+                "username": "张三（改名了）",
+                "phone": "13800138001",
+                "email": null,
+                "avatar_url": "https://example.com/avatars/new_avatar.png",
+                "bio": "这是新的个人简介",
+                "role": 0,
+                "status": 0
+              },
+              "user_data": {
+                "last_login_at": "2026-05-12T10:30:00",
+                "created_at": "2026-05-12T10:30:00",
+                "updated_at": "2026-05-12T14:00:00",
+                "deleted_at": null
+              }
+            }
+          }
+        },
+        {
+          "scenario": "更新不存在的用户",
+          "request": {
+            "path_params": {
+              "uid": "eeeeeeee-ffff-0000-1111-222222222222"
+            },
+            "body": {
+              "username": "路人甲"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "uid eeeeeeee-ffff-0000-1111-222222222222 not found.",
+            "data": null
+          }
+        },
+        {
+          "scenario": "更新用户时传入不允许的字段（role）应被拒绝",
+          "request": {
+            "path_params": {
+              "uid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            },
+            "body": {
+              "username": "张三",
+              "role": 2
+            }
+          },
+          "expected_response": {
+            "code": 422,
+            "detail": [
+              {
+                "loc": ["body", "role"],
+                "msg": "extra fields not permitted",
+                "type": "value_error.extra"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/users/password/id/{uid}",
+      "summary": "修改密码",
+      "cases": [
+        {
+          "scenario": "成功修改密码（已知旧密码）",
+          "request": {
+            "path_params": {
+              "uid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            },
+            "body": {
+              "old_password": "Abc@123456",
+              "new_password": "NewPwd@789"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": true
+          }
+        },
+        {
+          "scenario": "旧密码错误",
+          "request": {
+            "path_params": {
+              "uid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            },
+            "body": {
+              "old_password": "wrong_password",
+              "new_password": "NewPwd@789"
+            }
+          },
+          "expected_response": {
+            "code": 400,
+            "msg": "old password mismatch",
+            "data": null
+          }
+        },
+        {
+          "scenario": "用户不存在时修改密码",
+          "request": {
+            "path_params": {
+              "uid": "eeeeeeee-ffff-0000-1111-222222222222"
+            },
+            "body": {
+              "old_password": "Abc@123456",
+              "new_password": "NewPwd@789"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "uid eeeeeeee-ffff-0000-1111-222222222222 not found.",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/users/soft/id/{uid}",
+      "summary": "软删除用户（注销）",
+      "cases": [
+        {
+          "scenario": "成功软删除用户",
+          "request": {
+            "path_params": {
+              "uid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": true
+          }
+        },
+        {
+          "scenario": "软删除不存在的用户",
+          "request": {
+            "path_params": {
+              "uid": "eeeeeeee-ffff-0000-1111-222222222222"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "soft delete faliled",
+            "data": false
+          }
+        },
+        {
+          "scenario": "重复软删除（已删除的用户再次软删除）",
+          "request": {
+            "path_params": {
+              "uid": "dddddddd-cccc-bbbb-aaaa-999999999999"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "uid dddddddd-cccc-bbbb-aaaa-999999999999 not found.",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/users/hard",
+      "summary": "管理员硬删除用户",
+      "cases": [
+        {
+          "scenario": "管理员成功硬删除用户",
+          "request": {
+            "body": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001",
+              "user_uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": true
+          }
+        },
+        {
+          "scenario": "非管理员尝试硬删除（权限不足）",
+          "request": {
+            "body": {
+              "admin_uid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+              "user_uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 403,
+            "msg": "admin permission denied",
+            "data": null
+          }
+        },
+        {
+          "scenario": "管理员硬删除不存在的用户",
+          "request": {
+            "body": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001",
+              "user_uid": "eeeeeeee-ffff-0000-1111-222222222222"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "hard delete failed",
+            "data": false
+          }
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/users/admin/ban",
+      "summary": "管理员封禁用户（status → BANNED=1）",
+      "cases": [
+        {
+          "scenario": "管理员成功封禁用户",
+          "request": {
+            "body": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001",
+              "user_uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+              "user_info": {
+                "username": "李四",
+                "phone": "13800138002",
+                "email": null,
+                "avatar_url": null,
+                "bio": null,
+                "role": 0,
+                "status": 1
+              },
+              "user_data": {
+                "last_login_at": "2026-05-12T11:00:00",
+                "created_at": "2026-05-12T11:00:00",
+                "updated_at": "2026-05-12T15:00:00",
+                "deleted_at": null
+              }
+            }
+          }
+        },
+        {
+          "scenario": "非管理员尝试封禁用户",
+          "request": {
+            "body": {
+              "admin_uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+              "user_uid": "c3d4e5f6-a7b8-9012-cdef-123456789012"
+            }
+          },
+          "expected_response": {
+            "code": 403,
+            "msg": "admin permission denied",
+            "data": null
+          }
+        },
+        {
+          "scenario": "封禁不存在的用户",
+          "request": {
+            "body": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001",
+              "user_uid": "eeeeeeee-ffff-0000-1111-222222222222"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "user eeeeeeee-ffff-0000-1111-222222222222 not found",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/users/admin/frozen",
+      "summary": "管理员冻结用户（status → FROZEN=2）",
+      "cases": [
+        {
+          "scenario": "管理员成功冻结用户",
+          "request": {
+            "body": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001",
+              "user_uid": "c3d4e5f6-a7b8-9012-cdef-123456789012"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "uid": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+              "user_info": {
+                "username": "王五",
+                "phone": "13800138003",
+                "email": null,
+                "avatar_url": null,
+                "bio": null,
+                "role": 0,
+                "status": 2
+              },
+              "user_data": {
+                "last_login_at": "2026-05-12T12:00:00",
+                "created_at": "2026-05-12T12:00:00",
+                "updated_at": "2026-05-12T15:30:00",
+                "deleted_at": null
+              }
+            }
+          }
+        },
+        {
+          "scenario": "非管理员尝试冻结用户",
+          "request": {
+            "body": {
+              "admin_uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+              "user_uid": "c3d4e5f6-a7b8-9012-cdef-123456789012"
+            }
+          },
+          "expected_response": {
+            "code": 403,
+            "msg": "admin permission denied",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/users/admin/unban",
+      "summary": "管理员解除封禁/冻结（status → NORMAL=0）",
+      "cases": [
+        {
+          "scenario": "管理员成功解除封禁用户（BANNED → NORMAL）",
+          "request": {
+            "body": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001",
+              "user_uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+              "user_info": {
+                "username": "李四",
+                "phone": "13800138002",
+                "email": null,
+                "avatar_url": null,
+                "bio": null,
+                "role": 0,
+                "status": 0
+              },
+              "user_data": {
+                "last_login_at": "2026-05-12T11:00:00",
+                "created_at": "2026-05-12T11:00:00",
+                "updated_at": "2026-05-12T17:00:00",
+                "deleted_at": null
+              }
+            }
+          }
+        },
+        {
+          "scenario": "非管理员尝试解除封禁",
+          "request": {
+            "body": {
+              "admin_uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+              "user_uid": "c3d4e5f6-a7b8-9012-cdef-123456789012"
+            }
+          },
+          "expected_response": {
+            "code": 403,
+            "msg": "admin permission denied",
+            "data": null
+          }
+        },
+        {
+          "scenario": "解除封禁不存在的用户",
+          "request": {
+            "body": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001",
+              "user_uid": "eeeeeeee-ffff-0000-1111-222222222222"
+            }
+          },
+          "expected_response": {
+            "code": 404,
+            "msg": "user eeeeeeee-ffff-0000-1111-222222222222 not found",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/users/admin/promote/admin",
+      "summary": "管理员提升用户为管理员（role → ADMIN=2）",
+      "cases": [
+        {
+          "scenario": "管理员成功将用户提升为管理员",
+          "request": {
+            "body": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001",
+              "user_uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+              "user_info": {
+                "username": "李四",
+                "phone": "13800138002",
+                "email": null,
+                "avatar_url": null,
+                "bio": null,
+                "role": 2,
+                "status": 0
+              },
+              "user_data": {
+                "last_login_at": "2026-05-12T11:00:00",
+                "created_at": "2026-05-12T11:00:00",
+                "updated_at": "2026-05-12T16:00:00",
+                "deleted_at": null
+              }
+            }
+          }
+        },
+        {
+          "scenario": "非管理员尝试提升他人为管理员",
+          "request": {
+            "body": {
+              "admin_uid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+              "user_uid": "c3d4e5f6-a7b8-9012-cdef-123456789012"
+            }
+          },
+          "expected_response": {
+            "code": 403,
+            "msg": "admin permission denied",
+            "data": null
+          }
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/users/admin/promote/moderator",
+      "summary": "管理员提升用户为审核员（role → MODERATOR=1）",
+      "cases": [
+        {
+          "scenario": "管理员成功将用户提升为审核员",
+          "request": {
+            "body": {
+              "admin_uid": "f0000000-0000-0000-0000-000000000001",
+              "user_uid": "d4e5f6a7-b8c9-0123-defa-234567890123"
+            }
+          },
+          "expected_response": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "uid": "d4e5f6a7-b8c9-0123-defa-234567890123",
+              "user_info": {
+                "username": "赵六",
+                "phone": "13800138004",
+                "email": null,
+                "avatar_url": null,
+                "bio": null,
+                "role": 1,
+                "status": 0
+              },
+              "user_data": {
+                "last_login_at": "2026-05-12T13:00:00",
+                "created_at": "2026-05-12T13:00:00",
+                "updated_at": "2026-05-12T16:30:00",
+                "deleted_at": null
+              }
+            }
+          }
+        },
+        {
+          "scenario": "非管理员尝试提升他人为审核员",
+          "request": {
+            "body": {
+              "admin_uid": "d4e5f6a7-b8c9-0123-defa-234567890123",
+              "user_uid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            }
+          },
+          "expected_response": {
+            "code": 403,
+            "msg": "admin permission denied",
+            "data": null
+          }
+        }
+      ]
+    }
+  ]
+}
