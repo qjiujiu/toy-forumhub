@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
@@ -22,9 +23,10 @@ from app.schemas.v2.post_stats import PostStatsDto
 
 from app.storage.v2.post.post_interface import IPostRepository
 
-from app.core.time import now_utc8
+from app.kit.time import now_utc8
 from app.core.db import transaction
 
+from app.kit.exceptions import PostNotFound
 
 class SQLAlchemyPostRepository(IPostRepository):
 
@@ -46,16 +48,17 @@ class SQLAlchemyPostRepository(IPostRepository):
         创建帖子聚合：一次事务内写入 posts + post_contents + post_stats。
         三张表要么都写成功，要么都失败回滚。
         """
+        pid = str(uuid.uuid4())
         status = data.post_status or PostDto()
-        post_payload = {"author_id": data.author_id}
+        post_payload = {"author_id": data.author_id, "pid": pid}
         if status.visibility is not None:
             post_payload["visibility"] = status.visibility.value
         if status.publish_status is not None:
             post_payload["publish_status"] = status.publish_status.value
 
         post = Post(**post_payload)
-        post_content = PostContent(post_id=post.pid, title=data.title, content=data.content)
-        post_stats = PostStats(post_id=post.pid, like_count=0, comment_count=0)
+        post_content = PostContent(post_id=pid, title=data.title, content=data.content)
+        post_stats = PostStats(post_id=pid, like_count=0, comment_count=0)
 
         with transaction(self.db):
             self.db.add_all([post, post_content, post_stats])
@@ -83,7 +86,7 @@ class SQLAlchemyPostRepository(IPostRepository):
             post_content=PostContentOut.model_validate(post.post_content),
             post_stats=stats_dto,
         )
-
+    
     def get_by_pid(self, pid: str) -> Optional[PostOut]:
         post = (
             self.db.query(Post)
@@ -94,13 +97,25 @@ class SQLAlchemyPostRepository(IPostRepository):
         )
         return self._build_post_out(post) if post else None
 
-    def get_by_author(self, author_id: str, page: int = 0, page_size: int = 20) -> BatchPostsOut:
+    def _build_author_base_query(self, author_id: str, selector: str = "public"):
+        """
+        构建按作者查询帖子的公共 base query。
+        - selector="public": 只返回所有人可见的已发布帖子
+        - selector="own":    返回作者自己的所有已发布帖子（含仅自己可见）
+        """
         base_q = (
             self.db.query(Post)
             .options(joinedload(Post.post_content), joinedload(Post.post_stats))
             .filter(Post.author_id == author_id)
-            .filter(Post.deleted_at.is_(None))
+            .filter(Post.deleted_at.is_(None),
+                    Post.publish_status == 1)
         )
+        if selector == "public":
+            base_q = base_q.filter(Post.visibility == 0)
+        return base_q
+
+    def get_by_author(self, author_id: str, page: int = 0, page_size: int = 20, selector: str = "public") -> BatchPostsOut:
+        base_q = self._build_author_base_query(author_id, selector)
         total = base_q.count()
         posts = base_q.order_by(desc(Post._id)).offset(page * page_size).limit(page_size).all()
         items = [out for p in posts if (out := self._build_post_out(p)) is not None]
@@ -110,7 +125,9 @@ class SQLAlchemyPostRepository(IPostRepository):
         base_q = (
             self.db.query(Post)
             .options(joinedload(Post.post_content), joinedload(Post.post_stats))
-            .filter(Post.deleted_at.is_(None))
+            .filter(Post.deleted_at.is_(None),
+                    Post.publish_status == 1,
+                    Post.visibility == 0)
         )
         total = base_q.count()
         posts = base_q.order_by(desc(Post._id)).offset(page * page_size).limit(page_size).all()
@@ -185,7 +202,7 @@ class SQLAlchemyPostRepository(IPostRepository):
             .first()
         )
         if not post:
-            return False
+            raise PostNotFound(pid=pid)
         with transaction(self.db):
             self.db.delete(post)
         return True

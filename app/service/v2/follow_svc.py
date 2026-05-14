@@ -1,5 +1,6 @@
 from typing import Union, Dict
 
+from app.models.v2.user import UserStatus
 from app.schemas.v2.follow import (
     FollowCreate,
     FollowCancel,
@@ -12,11 +13,14 @@ from app.schemas.v2.user import UserRole
 from app.storage.v2.follow.follow_interface import IFollowRepository
 from app.storage.v2.user.user_interface import IUserRepository
 
-from app.core.logx import logger
-from app.core.exceptions import (
+import logging
+logger = logging.getLogger(__name__)
+from app.kit.exceptions import (
     FollowYourselfError,
+    ForbiddenAction,
     UserNotFound,
     AdminPermissionDenied,
+    HardDeleteFollowRequiresSoftDeleteError,
 )
 
 
@@ -41,6 +45,8 @@ class FollowService:
         user = self._user_repo.find_user(uid=uid)
         if not user:
             raise UserNotFound(user_id=uid)
+        if user.user_info.status != UserStatus.NORMAL:
+            raise ForbiddenAction(f"user {uid} is not active (status={user.user_info.status})")
 
     def _verify_admin(self, admin_uid: str) -> None:
         """验证操作者是否为管理员。"""
@@ -100,19 +106,25 @@ class FollowService:
 
     def hard_unfollow(self, admin_uid: str, data: FollowCancel) -> bool:
         """
-        硬删除关注记录（管理员操作）。
+        硬删除关注记录（管理员操作，仅允许对已软删除的关注执行硬删除）。
 
         流程：
         1. 验证管理员权限
-        2. 调用数据层硬删除（可能抛 NotFollowingError）
-        3. 关注者 following_count -1，被关注者 followers_count -1
+        2. 检查关注关系是否仍有效（deleted_at IS NULL）→ 抛 HardDeleteFollowRequiresSoftDeleteError
+        3. 调用数据层硬删除（可能抛 NotFollowingError）
+        4. 硬删除后不再更新计数，因为软删除时已经更新过
         """
         self._verify_admin(admin_uid)
 
-        result = self._follow_repo.hard_unfollow(data)
+        # 如果通过 get_follows 能查到（已过滤软删除），说明未软删除 → 不允许硬删除
+        active = self._follow_repo.get_follows(
+            FollowDto(user_id=data.user_id, followed_user_id=data.followed_user_id),
+            page=0, page_size=1,
+        )
+        if active.total > 0:
+            raise HardDeleteFollowRequiresSoftDeleteError(data.user_id, data.followed_user_id)
 
-        self._user_repo.update_stats(data.user_id, following_step=-1)
-        self._user_repo.update_stats(data.followed_user_id, followers_step=-1)
+        result = self._follow_repo.hard_unfollow(data)
 
         logger.info(
             f"[HARD_UNFOLLOW] admin={admin_uid} hard-unfollowed "

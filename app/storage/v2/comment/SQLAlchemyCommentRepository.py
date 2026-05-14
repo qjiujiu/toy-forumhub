@@ -3,8 +3,8 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
 
-from app.models.comment import Comment, CommentStatus, ReviewStatus
-from app.models.comment_content import CommentContent
+from app.models.v2.comment import Comment, CommentStatus, ReviewStatus
+from app.models.v2.comment_content import CommentContent
 
 from app.schemas.v2.comment import (
     CommentCreate,
@@ -19,7 +19,7 @@ from app.schemas.v2.comment_content import CommentContentCreate
 
 from app.storage.v2.comment.comment_interface import ICommentRepository
 
-from app.core.time import now_utc8
+from app.kit.time import now_utc8
 from app.core.db import transaction
 
 
@@ -100,14 +100,18 @@ class SQLAlchemyCommentRepository(ICommentRepository):
             self.db.query(Comment)
             .options(joinedload(Comment.comment_content))
             .filter(Comment.deleted_at.is_(None))
+            .filter(Comment.review_status == 0)
         )
 
-        for field_name in query.model_fields:
-            field_value = getattr(query, field_name, None)
-            if field_value is not None:
-                model_field = getattr(Comment, field_name, None)
-                if model_field is not None:
-                    base_q = base_q.filter(model_field == field_value)
+        query_data = query.model_dump(exclude_unset=True)
+        for field_name, field_value in query_data.items():
+            model_field = getattr(Comment, field_name, None)
+            if model_field is None:
+                continue
+            if field_value is None:
+                base_q = base_q.filter(model_field.is_(None))
+            else:
+                base_q = base_q.filter(model_field == field_value)
 
         base_q = base_q.order_by(desc(Comment._id))
 

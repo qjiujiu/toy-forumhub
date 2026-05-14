@@ -2,7 +2,7 @@ import pytest
 
 from tests.mock.mock_like import MockLikeRepository
 from app.schemas.v2.like import LikeCreate, LikeCancel, LikeDto
-from app.core.exceptions import AlreadyLikedError, NotLikedError
+from app.kit.exceptions import AlreadyLikedError, NotLikedError
 
 
 class TestMockLikeRepository:

@@ -4,7 +4,7 @@ import datetime
 import uuid
 from app.models.v2.base import Base
 from enum import IntEnum  
-from app.core.time import now_utc8
+from app.kit.time import now_utc8
 
 class UserRole(IntEnum):
     NORMAL_USER = 0 # 普通用户

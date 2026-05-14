@@ -1,8 +1,7 @@
-from sqlalchemy import Column, Integer, String, TIMESTAMP, ForeignKey, Index, UniqueConstraint
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, ForeignKey, Index, UniqueConstraint, TIMESTAMP
 from app.models.v2.base import Base
-from app.core.time import now_utc8
 import uuid
+from app.kit.time import now_utc8
 
 class PostStats(Base):
     """ 帖子统计表，存储帖子的统计数据，比如评论数点赞数，后续可扩展。
@@ -31,8 +30,8 @@ class PostStats(Base):
     # 帖子总评论数
     comment_count = Column(Integer, default=0)
     # 后续可扩展收藏数，转发数
-    created_at = Column(TIMESTAMP(timezone=True), default=now_utc8)  # 创建时间
     # 用于热帖排序的更新时间，点赞数或评论数变化时更新
+    created_at = Column(TIMESTAMP(timezone=True), default=now_utc8)
     
     __table_args__ = (
         UniqueConstraint('psid', name='unique_psid'),

@@ -2,8 +2,8 @@ from sqlalchemy import Column, Integer, String, SmallInteger, TIMESTAMP, Text, F
 from sqlalchemy.orm import relationship
 import datetime
 import uuid
-from app.models.base import Base
-from app.core.time import now_utc8
+from app.models.v2.base import Base
+from app.kit.time import now_utc8
 class CommentContent(Base):
     """ 评论内容表，存储评论的实际内容。
     

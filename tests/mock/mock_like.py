@@ -18,7 +18,7 @@ from app.schemas.v2.like import (
     LikeOut,
     BatchLikesOut,
 )
-from app.core.exceptions import AlreadyLikedError, NotLikedError
+from app.kit.exceptions import AlreadyLikedError, NotLikedError
 
 
 def _now():

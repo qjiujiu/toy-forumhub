@@ -11,7 +11,7 @@ from app.schemas.v2.comment import CommentCreate
 from app.schemas.v2.user import UserCreate
 from app.service.v2.like_svc import LikeService
 
-from app.core.exceptions import AlreadyLikedError, NotLikedError
+from app.kit.exceptions import AlreadyLikedError, NotLikedError
 
 
 @pytest.fixture

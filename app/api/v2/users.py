@@ -16,15 +16,17 @@ from app.storage.v2.database import (
 )
 from app.storage.v2.user.user_interface import IUserRepository
 
-from app.core.exceptions import (
+from app.kit.exceptions import (
     UserNotFound,
     PasswordMismatchError,
     AdminPermissionDenied
 )
 
-from app.core.logx import logger
-from app.core.biz_response import BizResponse
+import logging
+logger = logging.getLogger(__name__)
+from app.schemas.v2.biz_response import BizResponse
 
+from fastapi.encoders import jsonable_encoder
 
 def get_user_service(
     user_repo: IUserRepository = Depends(get_user_repo),
@@ -70,7 +72,7 @@ def query_batch_users(
             page_size=page_size,
             to_dict=True,
         )
-        return BizResponse(data=result)
+        return BizResponse(data=jsonable_encoder(result))
     except Exception as e:
         return BizResponse(data=list(), msg=str(e), status_code=500)
 
@@ -266,6 +268,31 @@ def frozen_user(
     """
     try:
         result = user_service.frozen_user_by_uid(
+            admin_uid=body.admin_uid,
+            user_uid=body.user_uid,
+            to_dict=True,
+        )
+        if not result:
+            return BizResponse(data=None, msg=f"user {body.user_uid} not found", status_code=404)
+        return BizResponse(data=result)
+    except AdminPermissionDenied as e:
+        return BizResponse(data=None, msg=str(e), status_code=403)
+    except UserNotFound as e:
+        return BizResponse(data=None, msg=str(e), status_code=404)
+    except Exception as e:
+        return BizResponse(data=None, msg=str(e), status_code=500)
+
+
+@users_router.put("/admin/unban", response_model=UserOut)
+def unban_user(
+    body: AdminOperation,
+    user_service: UserService = Depends(get_user_service),
+):
+    """
+    管理员解除封禁/冻结：将用户 status 重置为 NORMAL (0)
+    """
+    try:
+        result = user_service.reset_user_status_by_uid(
             admin_uid=body.admin_uid,
             user_uid=body.user_uid,
             to_dict=True,

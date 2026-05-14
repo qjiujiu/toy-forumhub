@@ -1,8 +1,8 @@
 from sqlalchemy import Column, Integer, String, TIMESTAMP, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 import datetime
-from app.models.base import Base
-from app.core.time import now_utc8
+from app.models.v2.base import Base
+from app.kit.time import now_utc8
 
 class Follow(Base):
     """ 用户关注关系表，记录用户关注了哪些用户 

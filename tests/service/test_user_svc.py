@@ -4,8 +4,8 @@ from tests.mock.mock_user import MockUserRepository
 from app.schemas.v2.user import UserCreate, UserUpdate, UserPasswordUpdate, UserInfoDto, UserUpdateDto
 from app.models.v2.user import UserRole, UserStatus
 from app.service.v2.user_svc import UserService
-from app.core.exceptions import UserNotFound, PasswordMismatchError, AdminPermissionDenied
-from app.core.security import verify_password
+from app.kit.exceptions import UserNotFound, PasswordMismatchError, AdminPermissionDenied
+from app.kit.security import verify_password
 
 
 @pytest.fixture

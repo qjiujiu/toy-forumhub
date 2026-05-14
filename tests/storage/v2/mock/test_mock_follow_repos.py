@@ -2,7 +2,7 @@ import pytest
 
 from tests.mock.mock_follow import MockFollowRepository
 from app.schemas.v2.follow import FollowCreate, FollowCancel, FollowDto
-from app.core.exceptions import AlreadyFollowingError, NotFollowingError
+from app.kit.exceptions import AlreadyFollowingError, NotFollowingError
 
 
 class TestMockFollowRepository:

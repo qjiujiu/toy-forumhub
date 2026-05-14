@@ -17,9 +17,10 @@ from app.schemas.v2.user_stats import UserStatsWithUserOut
 
 from app.storage.v2.user.user_interface import IUserRepository
 
-from app.core.logx import logger
-from app.core.exceptions import UserNotFound, PasswordMismatchError, AdminPermissionDenied
-from app.core.security import hash_password, verify_password
+import logging
+logger = logging.getLogger(__name__)
+from app.kit.exceptions import UserNotFound, PasswordMismatchError, AdminPermissionDenied
+from app.kit.security import hash_password, verify_password
 
 
 class UserService:
@@ -30,13 +31,13 @@ class UserService:
     def _get_user_or_raise(self, uid: str) -> UserOut:
         user = self._user_repo.find_user(uid=uid)
         if not user:
-            raise UserNotFound(f"user {uid} not found")
+            raise UserNotFound(user_id=uid)
         return user
 
     def _verify_admin(self, admin_uid: str) -> None:
         user = self._user_repo.find_user(uid=admin_uid)
         if not user:
-            raise UserNotFound(f"admin user {admin_uid} not found")
+            raise UserNotFound(user_id=admin_uid)
         if user.user_info.role != UserRole.ADMIN:
             raise AdminPermissionDenied(f"User {admin_uid} is not an admin")
 
@@ -71,13 +72,13 @@ class UserService:
     def get_user_by_uid(self, uid: str, to_dict: bool = True) -> Union[Dict, UserOut]:
         user = self._user_repo.find_user(uid=uid)
         if not user:
-            raise UserNotFound(f"user {uid} not found")
+            raise UserNotFound(user_id=uid)
         return user.model_dump() if to_dict else user
 
     def get_user_by_phone(self, phone: str, to_dict: bool = True) -> Union[Dict, UserOut]:
         user = self._user_repo.find_user(phone=phone)
         if not user:
-            raise UserNotFound(f"user with phone {phone} not found")
+            raise UserNotFound(phone=phone)
         return user.model_dump() if to_dict else user
 
     def get_user_profile(
@@ -87,7 +88,7 @@ class UserService:
     ) -> Union[Dict, UserStatsWithUserOut]:
         profile = self._user_repo.get_user_profile(uid)
         if not profile:
-            raise UserNotFound(f"user {uid} not found")
+            raise UserNotFound(user_id=uid)
         return profile.model_dump() if to_dict else profile
 
     def update_user(
@@ -96,7 +97,7 @@ class UserService:
         data: UserUpdate,
         to_dict: bool = True
     ) -> Optional[Union[Dict, UserOut]]:
-        update_dto = UserUpdateDto(user_info=UserInfoDto.model_validate(data.user_info, from_attributes=True))
+        update_dto = UserUpdateDto(user_info=UserInfoDto(**data.model_dump(exclude_none=True)))
         updated = self._user_repo.update_user(uid, update_dto)
         if not updated:
             return None
@@ -105,7 +106,7 @@ class UserService:
     def change_password(self, uid: str, data: UserPasswordUpdate) -> bool:
         stored_password = self._user_repo.get_password(uid)
         if not stored_password:
-            raise UserNotFound(f"user {uid} not found")
+            raise UserNotFound(user_id=uid)
         if not verify_password(data.old_password, stored_password):
             raise PasswordMismatchError()
 
@@ -145,6 +146,15 @@ class UserService:
         if not updated:
             return None
         logger.info(f"[FROZEN_USER] Frozen user uid={user_uid} by admin {admin_uid}")
+        return updated.model_dump() if to_dict else updated
+
+    def reset_user_status_by_uid(self, admin_uid: str, user_uid: str, to_dict: bool = True) -> Optional[Union[Dict, UserOut]]:
+        self._verify_admin(admin_uid)
+        update_dto = UserUpdateDto(user_info=UserInfoDto(status=UserStatus.NORMAL))
+        updated = self._user_repo.update_user(user_uid, update_dto)
+        if not updated:
+            return None
+        logger.info(f"[UNBAN_USER] Reset user uid={user_uid} status to NORMAL by admin {admin_uid}")
         return updated.model_dump() if to_dict else updated
 
     def user_to_admin(self, admin_uid: str, user_uid: str, to_dict: bool = True) -> Optional[Union[Dict, UserOut]]:

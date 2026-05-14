@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, TIMESTAMP, ForeignKey, UniqueCon
 from sqlalchemy.orm import relationship
 import datetime
 from app.models.v2.base import Base
-from app.core.time import now_utc8
+from app.kit.time import now_utc8
 
 class UserStats(Base):
     """ 用户关注统计表，记录每个用户的关注数和粉丝数 

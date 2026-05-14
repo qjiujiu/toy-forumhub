@@ -93,7 +93,7 @@ class TestUsersApiV2:
         """意图：更新用户信息接口应只更新请求体字段，并返回更新后的用户信息。"""
         created = client.post("/users/", json={"username": "u1", "phone": "111", "password": "pw"}).json()
         uid = created["data"]["uid"]
-        update_body = {"user_info": {"username": "u2", "bio": "bio"}}
+        update_body = {"username": "u2", "bio": "bio"}
         r = client.put(f"/users/info/id/{uid}", json=update_body)
         assert r.status_code == 200
         body = r.json()

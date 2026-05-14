@@ -10,7 +10,7 @@ from app.schemas.v2.user import UserCreate, UserInfoDto, UserUpdateDto
 from app.models.v2.user import UserRole
 from app.service.v2.post_svc import PostService
 
-from app.core.exceptions import PostNotFound, ForbiddenAction, AdminPermissionDenied
+from app.kit.exceptions import PostNotFound, ForbiddenAction, AdminPermissionDenied
 
 
 @pytest.fixture

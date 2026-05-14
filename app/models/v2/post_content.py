@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, TIMESTAMP
 import uuid
 from app.models.v2.base import Base
-from app.core.time import now_utc8
+from app.kit.time import now_utc8
 
 class PostContent(Base):
     """ 帖子内容表，存储帖子的标题和内容。

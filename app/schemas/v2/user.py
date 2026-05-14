@@ -22,6 +22,8 @@ class UserTimeDto(BaseModel):
     updated_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
 
+    model_config = ConfigDict(from_attributes=True)
+
 class UserUpdateDto(BaseModel):
     password: Optional[str] = None
     user_info: Optional[UserInfoDto] = None
@@ -68,7 +70,11 @@ class UserUpdate(BaseModel):
     """
     普通用户的可更新字段
     """
-    user_info: UserInfoDto
+    username: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[EmailStr] = None
+    avatar_url: Optional[str] = None
+    bio: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 

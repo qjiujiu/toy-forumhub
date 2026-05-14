@@ -1,3 +1,4 @@
+import uuid
 from typing import Optional
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
@@ -55,8 +56,11 @@ class SQLAlchemyUserRepository(IUserRepository):
     def _base_query(self):
         return self.db.query(User).filter(
             User.deleted_at.is_(None),
-            User.status == 0,
+            # User.status == 0,
         )
+    
+    def _update_query(self):
+        return self.db.query(User).filter(User.deleted_at.is_(None))
 
     def find_user(self, uid: Optional[str] = None, phone: Optional[str] = None) -> Optional[UserOut]:
         if uid:
@@ -93,7 +97,9 @@ class SQLAlchemyUserRepository(IUserRepository):
         创建用户聚合：一次事务内写入 users + user_stats。
         保证用户创建后必然有对应的统计记录（0/0）。
         """
+        uid = str(uuid.uuid4())
         user = User(
+            uid=uid,
             username=user_data.username,
             phone=user_data.phone,
             password=user_data.password,
@@ -102,7 +108,7 @@ class SQLAlchemyUserRepository(IUserRepository):
         )
 
         # 创建默认统计记录
-        stats = UserStats(user_id=user.uid, following_count=0, followers_count=0)
+        stats = UserStats(user_id=uid, following_count=0, followers_count=0)
 
         with transaction(self.db):
             self.db.add_all([user, stats])
@@ -111,7 +117,7 @@ class SQLAlchemyUserRepository(IUserRepository):
         return _to_user_out(user)
 
     def update_user(self, uid: str, update_dto: UserUpdateDto) -> Optional[UserOut]:
-        user = self._base_query().filter(User.uid == uid).first()
+        user = self._update_query().filter(User.uid == uid).first()
         if not user:
             return None
 

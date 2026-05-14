@@ -4,13 +4,13 @@ from tests.mock.mock_comment import MockCommentRepository
 from tests.mock.mock_post import MockPostRepository
 from tests.mock.mock_user import MockUserRepository
 
-from app.schemas.v2.comment import CommentCreate, CommentQueryDTO, StatusUpdate
+from app.schemas.v2.comment import CommentCreate, CommentQueryDTO
 from app.schemas.v2.post import PostDto, PostCreate
 from app.schemas.v2.user import UserCreate, UserInfoDto, UserUpdateDto
 from app.models.v2.user import UserRole
 from app.service.v2.comment_svc import CommentService
 
-from app.core.exceptions import CommentNotFound, AdminPermissionDenied, UserNotFound
+from app.kit.exceptions import CommentNotFound, AdminPermissionDenied, UserNotFound, ForbiddenAction, CommentNotSoftDeletedError
 
 
 @pytest.fixture
@@ -85,8 +85,8 @@ class TestCommentService:
         assert result.total == 3
         assert result.count == 3
 
-    def test_update_comment_as_admin(self, comment_svc, post_repo, user_repo):
-        """意图：管理员更新评论状态成功。"""
+    def test_ban_comment_as_admin(self, comment_svc, post_repo, user_repo):
+        """意图：管理员封禁评论成功，review_status 变为 REJECTED(1)。"""
         author = user_repo.create_user(UserCreate(username="author", phone="111", password="pw"))
         admin = user_repo.create_user(UserCreate(username="admin", phone="999", password="pw"))
         user_repo.update_user(admin.uid, UserUpdateDto(user_info=UserInfoDto(role=UserRole.ADMIN)))
@@ -98,13 +98,31 @@ class TestCommentService:
             to_dict=True,
         )
         cid = c_dict["cid"]
-        result = comment_svc.update_comment(admin.uid, cid, StatusUpdate(status=1))
+        result = comment_svc.ban_comment(admin.uid, cid)
+        assert result is True
+        found = comment_svc.get_comment(cid)
+        assert found.review_status == 1
+
+    def test_fold_comment_as_admin(self, comment_svc, post_repo, user_repo):
+        """意图：管理员折叠评论成功，status 变为 FOLDED(1)。"""
+        author = user_repo.create_user(UserCreate(username="author", phone="111", password="pw"))
+        admin = user_repo.create_user(UserCreate(username="admin", phone="999", password="pw"))
+        user_repo.update_user(admin.uid, UserUpdateDto(user_info=UserInfoDto(role=UserRole.ADMIN)))
+        post = post_repo.create_post(
+            PostCreate(author_id=author.uid, title="t", content="c", post_status=PostDto())
+        )
+        c_dict = comment_svc.create_comment(
+            CommentCreate(post_id=post.pid, author_id=author.uid, content="c"),
+            to_dict=True,
+        )
+        cid = c_dict["cid"]
+        result = comment_svc.fold_comment(admin.uid, cid)
         assert result is True
         found = comment_svc.get_comment(cid)
         assert found.status == 1
 
-    def test_update_comment_non_admin_raises(self, comment_svc, post_repo, user_repo):
-        """意图：非管理员更新评论状态应抛 AdminPermissionDenied。"""
+    def test_ban_comment_non_admin_raises(self, comment_svc, post_repo, user_repo):
+        """意图：非管理员封禁评论应抛 AdminPermissionDenied。"""
         author = user_repo.create_user(UserCreate(username="author", phone="111", password="pw"))
         post = post_repo.create_post(
             PostCreate(author_id=author.uid, title="t", content="c", post_status=PostDto())
@@ -114,25 +132,10 @@ class TestCommentService:
             to_dict=True,
         )
         with pytest.raises(AdminPermissionDenied):
-            comment_svc.update_comment(author.uid, c_dict["cid"], StatusUpdate(status=1))
+            comment_svc.ban_comment(author.uid, c_dict["cid"])
 
-    def test_delete_comment(self, comment_svc, post_repo, user_repo):
-        """意图：软删除评论后，get_comment 返回 None。"""
-        author = user_repo.create_user(UserCreate(username="author", phone="111", password="pw"))
-        post = post_repo.create_post(
-            PostCreate(author_id=author.uid, title="t", content="c", post_status=PostDto())
-        )
-        c_dict = comment_svc.create_comment(
-            CommentCreate(post_id=post.pid, author_id=author.uid, content="c"),
-            to_dict=True,
-        )
-        cid = c_dict["cid"]
-        result = comment_svc.delete_comment(cid)
-        assert result is True
-        assert comment_svc.get_comment(cid) is None
-
-    def test_hard_delete_comment_as_admin(self, comment_svc, post_repo, user_repo):
-        """意图：管理员硬删除评论成功。"""
+    def test_unban_comment_as_admin(self, comment_svc, post_repo, user_repo):
+        """意图：管理员解封评论成功，review_status 恢复为 APPROVED(0)。"""
         author = user_repo.create_user(UserCreate(username="author", phone="111", password="pw"))
         admin = user_repo.create_user(UserCreate(username="admin", phone="999", password="pw"))
         user_repo.update_user(admin.uid, UserUpdateDto(user_info=UserInfoDto(role=UserRole.ADMIN)))
@@ -144,9 +147,104 @@ class TestCommentService:
             to_dict=True,
         )
         cid = c_dict["cid"]
+        # 先封禁
+        comment_svc.ban_comment(admin.uid, cid)
+        assert comment_svc.get_comment(cid).review_status == 1
+        # 再解封
+        result = comment_svc.unban_comment(admin.uid, cid)
+        assert result is True
+        found = comment_svc.get_comment(cid)
+        assert found.review_status == 0
+
+    def test_unban_comment_non_admin_raises(self, comment_svc, post_repo, user_repo):
+        """意图：非管理员解封评论应抛 AdminPermissionDenied。"""
+        author = user_repo.create_user(UserCreate(username="author", phone="111", password="pw"))
+        post = post_repo.create_post(
+            PostCreate(author_id=author.uid, title="t", content="c", post_status=PostDto())
+        )
+        c_dict = comment_svc.create_comment(
+            CommentCreate(post_id=post.pid, author_id=author.uid, content="c"),
+            to_dict=True,
+        )
+        with pytest.raises(AdminPermissionDenied):
+            comment_svc.unban_comment(author.uid, c_dict["cid"])
+
+    def test_fold_comment_non_admin_raises(self, comment_svc, post_repo, user_repo):
+        """意图：非管理员折叠评论应抛 AdminPermissionDenied。"""
+        author = user_repo.create_user(UserCreate(username="author", phone="111", password="pw"))
+        post = post_repo.create_post(
+            PostCreate(author_id=author.uid, title="t", content="c", post_status=PostDto())
+        )
+        c_dict = comment_svc.create_comment(
+            CommentCreate(post_id=post.pid, author_id=author.uid, content="c"),
+            to_dict=True,
+        )
+        with pytest.raises(AdminPermissionDenied):
+            comment_svc.fold_comment(author.uid, c_dict["cid"])
+
+    def test_delete_comment(self, comment_svc, post_repo, user_repo):
+        """意图：作者本人软删除评论成功，get_comment 返回 None。"""
+        author = user_repo.create_user(UserCreate(username="author", phone="111", password="pw"))
+        post = post_repo.create_post(
+            PostCreate(author_id=author.uid, title="t", content="c", post_status=PostDto())
+        )
+        c_dict = comment_svc.create_comment(
+            CommentCreate(post_id=post.pid, author_id=author.uid, content="c"),
+            to_dict=True,
+        )
+        cid = c_dict["cid"]
+        result = comment_svc.delete_comment(author.uid, cid)
+        assert result is True
+        assert comment_svc.get_comment(cid) is None
+
+    def test_delete_comment_other_user_raises(self, comment_svc, post_repo, user_repo):
+        """意图：非作者删除他人评论应抛 ForbiddenAction。"""
+        author = user_repo.create_user(UserCreate(username="author", phone="111", password="pw"))
+        other = user_repo.create_user(UserCreate(username="other", phone="222", password="pw"))
+        post = post_repo.create_post(
+            PostCreate(author_id=author.uid, title="t", content="c", post_status=PostDto())
+        )
+        c_dict = comment_svc.create_comment(
+            CommentCreate(post_id=post.pid, author_id=author.uid, content="c"),
+            to_dict=True,
+        )
+        with pytest.raises(ForbiddenAction):
+            comment_svc.delete_comment(other.uid, c_dict["cid"])
+
+    def test_hard_delete_comment_as_admin(self, comment_svc, post_repo, user_repo):
+        """意图：仅当评论已软删除时，管理员硬删除成功。"""
+        author = user_repo.create_user(UserCreate(username="author", phone="111", password="pw"))
+        admin = user_repo.create_user(UserCreate(username="admin", phone="999", password="pw"))
+        user_repo.update_user(admin.uid, UserUpdateDto(user_info=UserInfoDto(role=UserRole.ADMIN)))
+        post = post_repo.create_post(
+            PostCreate(author_id=author.uid, title="t", content="c", post_status=PostDto())
+        )
+        c_dict = comment_svc.create_comment(
+            CommentCreate(post_id=post.pid, author_id=author.uid, content="c"),
+            to_dict=True,
+        )
+        cid = c_dict["cid"]
+        # 先软删除
+        comment_svc.delete_comment(author.uid, cid)
+        # 再硬删除
         result = comment_svc.hard_delete_comment(admin.uid, cid)
         assert result is True
         assert comment_svc.get_comment(cid) is None
+
+    def test_hard_delete_not_soft_deleted_raises(self, comment_svc, post_repo, user_repo):
+        """意图：未软删除的评论硬删除应抛 CommentNotSoftDeletedError。"""
+        author = user_repo.create_user(UserCreate(username="author", phone="111", password="pw"))
+        admin = user_repo.create_user(UserCreate(username="admin", phone="999", password="pw"))
+        user_repo.update_user(admin.uid, UserUpdateDto(user_info=UserInfoDto(role=UserRole.ADMIN)))
+        post = post_repo.create_post(
+            PostCreate(author_id=author.uid, title="t", content="c", post_status=PostDto())
+        )
+        c_dict = comment_svc.create_comment(
+            CommentCreate(post_id=post.pid, author_id=author.uid, content="c"),
+            to_dict=True,
+        )
+        with pytest.raises(CommentNotSoftDeletedError):
+            comment_svc.hard_delete_comment(admin.uid, c_dict["cid"])
 
     def test_hard_delete_comment_non_admin_raises(self, comment_svc, post_repo, user_repo):
         """意图：非管理员硬删除评论应抛 AdminPermissionDenied。"""
@@ -179,5 +277,6 @@ class TestCommentService:
 
     def test_delete_nonexistent_comment(self, comment_svc, post_repo, user_repo):
         """意图：删除不存在的评论返回 False。"""
-        result = comment_svc.delete_comment("nonexistent")
+        author = user_repo.create_user(UserCreate(username="author", phone="111", password="pw"))
+        result = comment_svc.delete_comment(author.uid, "nonexistent")
         assert result is False

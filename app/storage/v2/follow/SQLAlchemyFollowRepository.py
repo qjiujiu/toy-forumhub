@@ -2,7 +2,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, and_
 
-from app.models.follow import Follow
+from app.models.v2.follow import Follow
 from app.models.v2.user import User
 
 from app.schemas.v2.follow import (
@@ -12,13 +12,13 @@ from app.schemas.v2.follow import (
     FollowOut,
     BatchFollowsOut,
 )
-from app.schemas.user import UserOut
+from app.schemas.v2.user import UserOut, UserInfoDto, UserTimeDto
 
 from app.storage.v2.follow.follow_interface import IFollowRepository
 
-from app.core.time import now_utc8
+from app.kit.time import now_utc8
 from app.core.db import transaction
-from app.core.exceptions import AlreadyFollowingError, NotFollowingError
+from app.kit.exceptions import AlreadyFollowingError, NotFollowingError
 
 
 class SQLAlchemyFollowRepository(IFollowRepository):
@@ -154,7 +154,11 @@ class SQLAlchemyFollowRepository(IFollowRepository):
             ) is not None
 
             items.append(FollowOut(
-                user=UserOut.model_validate(target_user),
+                user=UserOut(
+                    uid=target_user.uid,
+                    user_info=UserInfoDto.model_validate(target_user),
+                    user_data=UserTimeDto.model_validate(target_user),
+                ),
                 is_mutual=is_mutual,
             ))
 

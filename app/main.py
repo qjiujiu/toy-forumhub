@@ -1,7 +1,14 @@
 from fastapi import FastAPI
-from app.api import users, follows, posts, comments, likes
+from app.core.log_config import config_logging
+
+config_logging()
+
+from app.api.v2 import users, follows, posts, comments, likes
 
 app = FastAPI(title="Forum Management System")
+
+# uvicorn app.main:app
+# uvicorn app.main:app --reload
 
 # 注册路由
 app.include_router(users.users_router)
