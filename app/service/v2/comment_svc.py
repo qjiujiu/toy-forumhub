@@ -149,11 +149,13 @@ class CommentService:
         """
         软删除评论并更新所有相关计数。
 
-        子评论不直接展示在帖子列表下（需要通过一级评论展开），
-        因此一级评论软删除时无需级联删除子孙，仅将自身 deleted_at 置为当前时间即可。
+        实现级联软删除：
+        - 当删除一级评论时，同时删除其所有子评论（包括二级、三级等后代）
+        - 当删除二级/三级评论时，只删除自身，不级联删除子评论
+        - 保持原有的评论计数逻辑不变，确保帖子和父评论计数正确
 
         分级递减规则：
-        - 一级（parent_id IS NULL）: 帖子 -= (comment_count + 1)
+        - 一级（parent_id IS NULL）: 帖子 -= (comment_count + 1)，同时级联删除所有后代评论
         - 二级（parent_id == root_id）: 帖子 -= 1，根节点 -= 1
         - 三级+（parent_id != root_id）: 帖子 -= 1，父节点 -= 1，根节点 -= 1
         """
@@ -164,28 +166,63 @@ class CommentService:
         if comment.author_id != uid:
             raise ForbiddenAction(f"user {uid} is not the author of comment {cid}")
 
+        # 获取所有需要软删除的评论ID（包括当前评论和所有后代评论）
+        comments_to_delete = self._get_all_descendant_comments(cid)
+        comments_to_delete.add(cid)  # 添加当前评论
+
         is_level1 = comment.parent_id is None
 
         if is_level1:
-            # 一级：只删自身，子孙靠 root 不可见自然消失
-            # TODO：后续考虑联级软删除（即同时更新子孙 deleted_at）
-            self._comment_repo.soft_delete(cid)
-            self._post_repo.update_stats(comment.post_id, PostStatsDto(comment_count=-(comment.comment_count + 1)))
+            # 一级评论：需要级联删除所有后代评论
+            # 先计算总评论数（用于帖子计数更新）
+            total_comment_count = comment.comment_count + 1  # +1 是因为包含自己
+            
+            # 执行级联软删除
+            for comment_id in comments_to_delete:
+                self._comment_repo.soft_delete(comment_id)
+            
+            # 更新帖子评论计数（注意：只更新一级评论的总评论数）
+            self._post_repo.update_stats(comment.post_id, PostStatsDto(comment_count=-total_comment_count))
         else:
-            # 二级 / 三级+
+            # 二级 / 三级+：只删除当前评论，不级联删除
             self._comment_repo.soft_delete(cid)
             self._post_repo.update_stats(comment.post_id, PostStatsDto(comment_count=-1))
 
             if comment.parent_id == comment.root_id:
                 # 二级：根节点减一
-                self._comment_repo.update_counters(comment.root_id, CommentUpdate(comment_count=-1))
+                self._comment_repo.update_counters(comment.parent_id, CommentUpdate(comment_count=-1))
             else:
                 # 三级+：父节点和根节点都减一
                 self._comment_repo.update_counters(comment.parent_id, CommentUpdate(comment_count=-1))
                 self._comment_repo.update_counters(comment.root_id, CommentUpdate(comment_count=-1))
 
-        logger.info(f"[DELETE_COMMENT] Soft deleted comment cid={cid}")
+        logger.info(f"[DELETE_COMMENT] Soft deleted comment cid={cid} and {len(comments_to_delete)-1} descendant comments")
         return True
+
+    def _get_all_descendant_comments(self, root_cid: str) -> set:
+        """
+        获取指定评论的所有后代评论（包括直接子评论和所有层级的子孙评论）。
+        
+        使用广度优先搜索遍历所有后代评论。
+        """
+        descendants = set()
+        queue = [root_cid]
+        
+        while queue:
+            current_cid = queue.pop(0)
+            # 获取当前评论的所有直接子评论
+            children = self._comment_repo.get_comments(
+                CommentQueryDTO(parent_id=current_cid), 
+                page=0, 
+                page_size=1000  # 假设单个评论的子评论不会超过1000个
+            )
+            
+            for child in children.items:
+                child_cid = child.cid
+                descendants.add(child_cid)
+                queue.append(child_cid)  # 将子评论加入队列继续搜索
+                
+        return descendants
 
     def hard_delete_comment(self, admin_uid: str, cid: str) -> bool:
         """
