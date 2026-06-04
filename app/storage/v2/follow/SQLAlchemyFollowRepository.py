@@ -2,8 +2,12 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, and_
 
+import logging
+from sqlalchemy.dialects.mysql import insert as mysql_insert
 from app.models.v2.follow import Follow
 from app.models.v2.user import User
+
+logger = logging.getLogger(__name__)
 
 from app.schemas.v2.follow import (
     FollowCreate,
@@ -32,29 +36,26 @@ class SQLAlchemyFollowRepository(IFollowRepository):
     def follow(self, data: FollowCreate) -> bool:
         """
         关注用户：创建新关注或恢复已取消的关注。
+        利用 UNIQUE 约束 + UPSERT 原子性防止并发重复，无需悲观锁。
         """
-        existing = (
-            self.db.query(Follow)
-            .filter(Follow.user_id == data.user_id)
-            .filter(Follow.followed_user_id == data.followed_user_id)
-            .first()
-        )
+        from app.kit.time import now_utc8
+        now = now_utc8()
 
-        if existing:
-            if existing.deleted_at is None:
-                raise AlreadyFollowingError(data.user_id, data.followed_user_id)
-            # 恢复已取消的关注
-            with transaction(self.db):
-                existing.deleted_at = None
-            return True
-
-        # 全新关注
-        follow = Follow(
+        stmt = mysql_insert(Follow).values(
             user_id=data.user_id,
             followed_user_id=data.followed_user_id,
+            created_at=now,
+            deleted_at=None,
+        ).on_duplicate_key_update(
+            deleted_at=None,
         )
+
         with transaction(self.db):
-            self.db.add(follow)
+            result = self.db.execute(stmt)
+
+        if result.rowcount == 0:
+            raise AlreadyFollowingError(data.user_id, data.followed_user_id)
+
         return True
 
     # ==================== D ====================

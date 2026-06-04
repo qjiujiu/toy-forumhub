@@ -1,7 +1,7 @@
 import uuid
 from datetime import timedelta
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc
+from sqlalchemy import desc, update
 from typing import Optional, List
 
 from app.models.v2.post import Post
@@ -150,22 +150,21 @@ class SQLAlchemyPostRepository(IPostRepository):
         return True
 
     def update_stats(self, pid: str, data: PostStatsDto) -> bool:
-        """增量更新帖子统计字段（post_stats 表），计数不下溢。"""
-        stats = (
-            self.db.query(PostStats)
-            .filter(PostStats.post_id == pid)
-            .first()
-        )
-        if not stats:
-            return False
-
+        """原子增量更新帖子统计字段，使用 column += delta 避免并发丢失更新。"""
         update_data = data.model_dump(exclude_none=True)
+        if not update_data:
+            return True
+
+        values = {}
+        for field, delta in update_data.items():
+            if delta:
+                col = getattr(PostStats, field)
+                values[field] = col + delta
+
+        stmt = update(PostStats).where(PostStats.post_id == pid).values(**values)
         with transaction(self.db):
-            for field, delta in update_data.items():
-                if delta:
-                    current = getattr(stats, field) or 0
-                    setattr(stats, field, max(0, current + delta))
-        return True
+            result = self.db.execute(stmt)
+        return result.rowcount > 0
 
     def update_content(self, pid: str, data: PostContentUpdate) -> bool:
         post_content = (

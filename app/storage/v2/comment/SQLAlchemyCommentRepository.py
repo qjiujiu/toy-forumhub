@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc
+from sqlalchemy import desc, update
 
 from app.models.v2.comment import Comment, CommentStatus, ReviewStatus
 from app.models.v2.comment_content import CommentContent
@@ -142,22 +142,21 @@ class SQLAlchemyCommentRepository(ICommentRepository):
         return True
 
     def update_counters(self, cid: str, data: CommentUpdate) -> bool:
-        comment = (
-            self.db.query(Comment)
-            .filter(Comment.cid == cid)
-            .filter(Comment.deleted_at.is_(None))
-            .first()
-        )
-        if not comment:
-            return False
-
+        """原子增量更新评论统计字段，避免并发丢失更新。"""
         update_data = data.model_dump(exclude_none=True)
+        if not update_data:
+            return True
+
+        values = {}
+        for field, delta in update_data.items():
+            if delta:
+                col = getattr(Comment, field)
+                values[field] = col + delta
+
+        stmt = update(Comment).where(Comment.cid == cid).where(Comment.deleted_at.is_(None)).values(**values)
         with transaction(self.db):
-            for field, delta in update_data.items():
-                if delta:
-                    current = getattr(comment, field)
-                    setattr(comment, field, max(0, current + delta) )
-        return True
+            result = self.db.execute(stmt)
+        return result.rowcount > 0
 
     def hard_delete(self, cid: str) -> bool:
         comment = (

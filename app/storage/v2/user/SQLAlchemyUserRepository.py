@@ -2,6 +2,7 @@ import uuid
 from typing import Optional
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
+from sqlalchemy import update
 from app.models.v2.user import User, UserRole, UserStatus
 from app.models.v2.user_stats import UserStats
 from app.schemas.v2.user import (
@@ -159,21 +160,22 @@ class SQLAlchemyUserRepository(IUserRepository):
         if following_step == 0 and followers_step == 0:
             return self.get_stats(user_id)
 
-        stats = self._get_stats_orm(user_id)
-        if stats is None:
+        values = {}
+        if following_step:
+            values["following_count"] = UserStats.following_count + following_step
+        if followers_step:
+            values["followers_count"] = UserStats.followers_count + followers_step
+
+        stmt = update(UserStats).where(UserStats.user_id == user_id).values(**values)
+        with transaction(self.db):
+            result = self.db.execute(stmt)
+
+        if result.rowcount == 0:
             raise RuntimeError(
                 f"user_stats missing for user_id={user_id}; cannot update stats. "
                 f"Please repair historical data first."
             )
-
-        with transaction(self.db):
-            if following_step != 0:
-                stats.following_count = max(0, stats.following_count + following_step)
-            if followers_step != 0:
-                stats.followers_count = max(0, stats.followers_count + followers_step)
-
-        self.db.refresh(stats)
-        return UserStatsDto.model_validate(stats)
+        return self.get_stats(user_id)
 
     def get_user_profile(self, user_id: str) -> Optional[UserStatsWithUserOut]:
         user = self._base_query().filter(User.uid == user_id).first()
