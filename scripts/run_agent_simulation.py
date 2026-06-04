@@ -226,8 +226,10 @@ def main():
             agent = orch._agent_gen.get_by_agent_id(action.agent_id)
             if agent:
                 mbti = agent.mbti_type.value
-            print(f"    [{mbti}] {title}")
-            print(f"      {content_preview}...")
+            safe_title = title.encode("gbk", errors="replace").decode("gbk", errors="replace")
+            safe_content = content_preview.encode("gbk", errors="replace").decode("gbk", errors="replace")
+            print(f"    [{mbti}] {safe_title}")
+            print(f"      {safe_content}...")
 
     # ==============================
     # 7. 清理

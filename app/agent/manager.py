@@ -221,7 +221,13 @@ class AgentOrchestrator:
             return results
 
         # 阶段 2：评论
-        comment_actions = self._build_comment_actions(successful_pids, topic, agent_map)
+        # 构建 pid → 帖子内容的映射，让评论 Agent 能看到它正在回复什么
+        post_contents = {
+            a.target_id: (a.title, a.content)
+            for a in post_results
+            if a.result == ActionResult.SUCCESS and a.target_id
+        }
+        comment_actions = self._build_comment_actions(successful_pids, post_contents, topic, agent_map)
         if comment_actions:
             comment_results = self._execute_batch(self._commenter, comment_actions, agent_map, topic)
             results.extend(comment_results)
@@ -266,15 +272,17 @@ class AgentOrchestrator:
     def _build_comment_actions(
         self,
         post_pids: List[str],
+        post_contents: Dict[str, tuple[str, str]],
         topic: Topic,
         agent_map: Dict[str, AgentProfile],
     ) -> List[AgentAction]:
-        """为每个帖子创建评论动作"""
+        """为每个帖子创建评论动作，附带帖子标题和内容供 LLM 参考"""
         actions = []
         commenters = getattr(self, "_pending_commenters", [])
         cfg = self.config.simulation
 
         for pid in post_pids:
+            title, content = post_contents.get(pid, ("", ""))
             for agent in commenters[:cfg.max_comments_per_post]:
                 actions.append(AgentAction(
                     action_id=str(uuid.uuid4()),
@@ -282,6 +290,10 @@ class AgentOrchestrator:
                     action_type=ActionType.CREATE_COMMENT,
                     topic_id=topic.topic_id,
                     target_id=pid,
+                    metadata={
+                        "post_title": title,
+                        "post_content": content,
+                    },
                 ))
         return actions
 
